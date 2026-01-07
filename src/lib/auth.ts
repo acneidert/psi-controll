@@ -9,6 +9,9 @@ export const auth = betterAuth({
         provider: "pg",
         schema: schema
     }),
+    trustedOrigins: process.env.TRUSTED_ORIGINS?.split(';') || [
+        'http://localhost:3000'
+    ],
     emailAndPassword: {
         enabled: true
     },
