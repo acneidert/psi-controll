@@ -5,9 +5,11 @@ import {
   pagamentos,
   agendas,
   faturas,
+  faturaItens,
 } from '@/db/schema'
-import { eq, and, sql, gte, lte, desc, count, sum } from 'drizzle-orm'
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { eq, and, sql, gte, lte, desc, count, sum, lt, inArray, isNull } from 'drizzle-orm'
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
+import { CalendarService } from './calendar'
 
 export class DashboardService {
   static async getStats() {
@@ -50,30 +52,79 @@ export class DashboardService {
         )
       )
 
+    // 5. Open Invoices Value
+    const [openInvoices] = await db
+      .select({ total: sum(faturas.valorTotal) })
+      .from(faturas)
+      .where(eq(faturas.status, 'aberta'))
+
+    // 6. Unbilled Consultations (Pending)
+    const [unbilled] = await db
+      .select({ total: sum(consultas.valorCobrado) })
+      .from(consultas)
+      .leftJoin(faturaItens, eq(consultas.id, faturaItens.consultaId))
+      .where(
+        and(
+          eq(consultas.status, 'realizada'),
+          isNull(faturaItens.id)
+        )
+      )
+
     return {
       totalPatients: Number(patientsCount?.count || 0),
       consultationsToday: Number(consultationsToday?.count || 0),
       activePatients: Number(activePatients?.count || 0),
       revenueMonth: Number(revenueMonth?.total || 0),
+      openInvoices: Number(openInvoices?.total || 0),
+      unbilledConsultations: Number(unbilled?.total || 0),
     }
   }
 
   static async getRecentConsultations() {
     const now = new Date()
-    
-    return await db
-      .select({
-        id: consultas.id,
-        patientName: pacientes.nomeCompleto,
-        patientEmail: pacientes.email,
-        date: consultas.dataPrevista,
-        status: consultas.status,
+    const endDate = addMonths(now, 1)
+
+    // Generate calendar events including recurrences
+    const events = await CalendarService.generateCalendar(now, endDate)
+
+    // Filter and sort
+    const nextConsultations = events
+      .filter((e) => {
+        return (
+          e.date >= now &&
+          ['disponivel', 'agendada', 'confirmada'].includes(e.status)
+        )
       })
-      .from(consultas)
-      .innerJoin(agendas, eq(consultas.agendaId, agendas.id))
-      .innerJoin(pacientes, eq(agendas.pacienteId, pacientes.id))
-      .where(gte(consultas.dataPrevista, now))
-      .orderBy(consultas.dataPrevista)
-      .limit(5)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 5)
+
+    return nextConsultations.map((e) => ({
+      id: e.consultationId || `virtual-${e.agendaId}-${e.date.getTime()}`,
+      patientName: e.patientName || 'Paciente',
+      patientEmail: e.patientEmail,
+      date: e.date,
+      status: e.status === 'disponivel' ? 'agendada' : e.status,
+    }))
+  }
+
+  static async getOverdueInvoices() {
+    const query = db
+      .select({
+        id: faturas.id,
+        patientName: pacientes.nomeCompleto,
+        dueDate: faturas.dataVencimento,
+        value: faturas.valorTotal,
+        status: faturas.status,
+      })
+      .from(faturas)
+      .innerJoin(pacientes, eq(faturas.pacienteId, pacientes.id))
+      .where(
+        and(
+          eq(faturas.status, 'aberta'),
+          lt(faturas.dataVencimento,  sql`CURRENT_DATE`)
+        )
+      )
+      .orderBy(faturas.dataVencimento)
+    return await query
   }
 }

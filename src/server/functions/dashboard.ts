@@ -12,3 +12,9 @@ export const getRecentConsultationsFn = createServerFn({
 }).handler(async () => {
   return await DashboardService.getRecentConsultations()
 })
+
+export const getOverdueInvoicesFn = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  return await DashboardService.getOverdueInvoices()
+})

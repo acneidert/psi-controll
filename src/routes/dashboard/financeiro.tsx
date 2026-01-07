@@ -8,7 +8,7 @@ import {
   payInvoiceFn,
   getPaidInvoicesFn,
 } from '@/server/functions/billing'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { toast } from 'sonner'
 import {
   Loader2,
@@ -447,20 +447,20 @@ function FinanceiroPage() {
                           {inv.paciente?.nomeCompleto || 'Desconhecido'}
                         </TableCell>
                         <TableCell>
-                          {format(new Date(inv.dataEmissao), 'dd/MM/yyyy')}
+                          {format(new Date(parseISO(inv.dataEmissao)), 'dd/MM/yyyy')}
                         </TableCell>
                         <TableCell>
                           <span
                             className={
-                              new Date(inv.dataVencimento) < new Date()
+                              (new Date(parseISO(inv.dataVencimento)).setHours(0,0,0)) < (new Date().setHours(0, 0, 0, 0))
                                 ? 'text-red-500 font-bold'
                                 : ''
                             }
                           >
                             {format(
-                              new Date(inv.dataVencimento),
+                              new Date(parseISO(inv.dataVencimento)),
                               'dd/MM/yyyy',
-                            )}
+                            )} 
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-bold">

@@ -13,6 +13,7 @@ type CalendarEvent = {
   consultationId?: number
   patientId: number
   patientName?: string
+  patientEmail?: string
 }
 
 export class CalendarService {
@@ -138,6 +139,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
+                patientEmail: agenda.paciente.email,
               })
 
               // Adicionar eventos fantasmas do histórico (Reagendamentos intermediários)
@@ -157,6 +159,7 @@ export class CalendarService {
                     consultationId: consultation.id,
                     patientId: agenda.pacienteId,
                     patientName: agenda.paciente.nomeCompleto,
+                    patientEmail: agenda.paciente.email,
                   })
                 }
               }
@@ -171,6 +174,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
+                patientEmail: agenda.paciente.email,
               })
             } else {
               // Slot Ocupado (Sem mudança de horário ou cancelado/realizado no mesmo horário)
@@ -183,6 +187,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
+                patientEmail: agenda.paciente.email,
               })
             }
           } else {
@@ -195,6 +200,7 @@ export class CalendarService {
               status: 'disponivel', // Representa o "Padrão" da agenda
               patientId: agenda.pacienteId,
               patientName: agenda.paciente.nomeCompleto,
+              patientEmail: agenda.paciente.email,
             })
           }
         }
@@ -216,6 +222,7 @@ export class CalendarService {
           consultationId: c.id,
           patientId: c.agenda.pacienteId,
           patientName: c.agenda.paciente.nomeCompleto,
+          patientEmail: c.agenda.paciente.email,
         })
       }
     }

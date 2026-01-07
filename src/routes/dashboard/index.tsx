@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Activity, Calendar, DollarSign, Users, ArrowUpRight } from 'lucide-react'
+import { Activity, Calendar, DollarSign, Users, ArrowUpRight, CreditCard, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -9,9 +9,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useServerFn } from '@tanstack/react-start'
-import { getDashboardStatsFn, getRecentConsultationsFn } from '@/server/functions/dashboard'
+import { getDashboardStatsFn, getRecentConsultationsFn, getOverdueInvoicesFn } from '@/server/functions/dashboard'
 import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 export const Route = createFileRoute('/dashboard/')({
@@ -21,25 +21,31 @@ export const Route = createFileRoute('/dashboard/')({
 function DashboardIndex() {
   const getStats = useServerFn(getDashboardStatsFn)
   const getRecentConsultations = useServerFn(getRecentConsultationsFn)
+  const getOverdueInvoices = useServerFn(getOverdueInvoicesFn)
 
   const [stats, setStats] = useState({
     totalPatients: 0,
     consultationsToday: 0,
     activePatients: 0,
     revenueMonth: 0,
+    openInvoices: 0,
+    unbilledConsultations: 0,
   })
   const [recentConsultations, setRecentConsultations] = useState<any[]>([])
+  const [overdueInvoices, setOverdueInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [statsData, recentData] = await Promise.all([
+        const [statsData, recentData, overdueData] = await Promise.all([
           getStats(),
           getRecentConsultations(),
+          getOverdueInvoices(),
         ])
-        setStats(statsData)
-        setRecentConsultations(recentData)
+        if (statsData) setStats(statsData)
+        if (recentData) setRecentConsultations(recentData)
+        if (overdueData) setOverdueInvoices(overdueData)
       } catch (error) {
         console.error('Failed to load dashboard data:', error)
       } finally {
@@ -65,7 +71,7 @@ function DashboardIndex() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -126,6 +132,34 @@ function DashboardIndex() {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">A Receber</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loading ? '...' : formatCurrency(stats.openInvoices)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Faturas em aberto
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loading ? '...' : formatCurrency(stats.unbilledConsultations)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Consultas realizadas não faturadas
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
@@ -172,9 +206,56 @@ function DashboardIndex() {
                       </p>
                     </div>
                     <div className="ml-auto font-medium">
-                      {format(new Date(consultation.date), "dd 'de' MMM, HH:mm", {
+                      {format(consultation.date, "dd 'de' MMM, HH:mm", {
+
                         locale: ptBR,
                       })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-1">
+          <CardHeader className="flex flex-row items-center">
+            <div className="grid gap-2">
+              <CardTitle>Faturas Vencidas</CardTitle>
+              <CardDescription>
+                Pagamentos pendentes.
+              </CardDescription>
+            </div>
+            <Button asChild size="sm" className="ml-auto gap-1">
+              <Link to="/dashboard/financeiro">
+                Ver Todas
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-8">
+              {loading ? (
+                <div className="text-center py-4 text-muted-foreground">Carregando...</div>
+              ) : overdueInvoices.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  Nenhuma fatura vencida.
+                </div>
+              ) : (
+                overdueInvoices.map((invoice) => (
+                  <div key={invoice.id} className="flex items-center">
+                    <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center font-bold text-red-600">
+                      $
+                    </div>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {invoice.patientName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Venceu em {format(parseISO(invoice.dueDate), "dd 'de' MMM", { locale: ptBR })}
+                      </p>
+                    </div>
+                    <div className="ml-auto font-medium text-red-600">
+                      {formatCurrency(Number(invoice.value))}
                     </div>
                   </div>
                 ))
