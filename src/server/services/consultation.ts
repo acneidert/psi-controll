@@ -1,9 +1,27 @@
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { PricingService } from './pricing'
 import { db } from '@/db'
-import { consultas } from '@/db/schema'
+import { agendas, consultas } from '@/db/schema'
 
 export class ConsultationService {
+  static async listByPatientId(patientId: number) {
+    const agendasList = await db.query.agendas.findMany({
+      where: eq(agendas.pacienteId, patientId),
+      columns: { id: true },
+    })
+    const agendaIds = agendasList.map((a) => a.id)
+
+    if (agendaIds.length === 0) return []
+
+    return await db.query.consultas.findMany({
+      where: inArray(consultas.agendaId, agendaIds),
+      orderBy: [desc(consultas.dataPrevista)],
+      with: {
+        agenda: true,
+      },
+    })
+  }
+
   private static async upsertConsultation(data: typeof consultas.$inferInsert) {
     const existing = await db.query.consultas.findFirst({
       where: and(
@@ -26,6 +44,21 @@ export class ConsultationService {
   }
 
   /**
+   * Atualiza observações da consulta (Prontuário/Evolução)
+   */
+  static async updateObservations(
+    consultationId: number,
+    observations: string,
+  ) {
+    const [updated] = await db
+      .update(consultas)
+      .set({ observacoes: observations })
+      .where(eq(consultas.id, consultationId))
+      .returning()
+    return updated
+  }
+
+  /**
    * RN-07: Criação de Consulta Padrão (Confirmar Presença)
    * RN-03: Snapshot de Preço
    */
@@ -35,7 +68,10 @@ export class ConsultationService {
     realizationDate?: Date,
   ) {
     // RN-01 & RN-02 executados aqui dentro
-    const price = await PricingService.calculateSessionPrice(agendaId, originalDate)
+    const price = await PricingService.calculateSessionPrice(
+      agendaId,
+      originalDate,
+    )
     const finalRealizationDate = realizationDate || originalDate
 
     return await this.upsertConsultation({
@@ -78,13 +114,15 @@ export class ConsultationService {
       originalDate,
     )
 
-    // Calculate History
-    let history: string[] = (existing?.historico as string[]) || []
-    if (existing && existing.dataRealizacao) {
-      // If moving from a previously rescheduled date, add it to history
-      if (existing.dataRealizacao.getTime() !== newDate.getTime()) {
-        history.push(existing.dataRealizacao.toISOString())
-      }
+    let history: Array<string> = []
+    if (Array.isArray(existing?.historico)) {
+      history = existing.historico
+    }
+    if (
+      existing?.dataRealizacao &&
+      existing.dataRealizacao.getTime() !== newDate.getTime()
+    ) {
+      history.push(existing.dataRealizacao.toISOString())
     }
 
     return await this.upsertConsultation({

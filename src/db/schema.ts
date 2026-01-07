@@ -121,6 +121,18 @@ export const anamnese = pgTable('anamnese', {
   medicamentos: text('medicamentos'),
 })
 
+export const evolucaoAtendimento = pgTable('evolucao_atendimento', {
+  id: serial('id_evolucao').primaryKey(),
+  prontuarioId: integer('id_prontuario')
+    .notNull()
+    .references(() => pacientes.id, { onDelete: 'cascade' }),
+  dataAtendimento: timestamp('data_atendimento').notNull(),
+  procedimentosUtilizados: text('procedimentos_utilizados').notNull(),
+  intervencoesRealizadas: text('intervencoes_realizadas').notNull(),
+  informacoesRelevantes: text('informacoes_relevantes').notNull(),
+  criadoEm: timestamp('criado_em').defaultNow(),
+})
+
 // 6. Consultas
 export const consultas = pgTable(
   'consultas',
@@ -137,7 +149,7 @@ export const consultas = pgTable(
     }).notNull(),
     status: statusConsultaEnum('status').default('agendada'),
     cobrarFalta: boolean('cobrar_falta').default(false),
-    historico: json('historico').$type<string[]>(),
+    historico: json('historico').$type<Array<string>>(),
     observacoes: text('observacoes'),
   },
   (table) => ({
@@ -189,6 +201,7 @@ export const pacientesRelations = relations(pacientes, ({ many }) => ({
   agendas: many(agendas),
   faturas: many(faturas),
   anamnese: many(anamnese),
+  evolucoes: many(evolucaoAtendimento),
 }))
 
 export const agendasRelations = relations(agendas, ({ one, many }) => ({

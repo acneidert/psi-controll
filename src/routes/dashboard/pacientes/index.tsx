@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import {
+  FileText,
   Mail,
   MoreHorizontal,
   Pencil,
@@ -48,7 +49,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-export const Route = createFileRoute('/dashboard/pacientes')({
+export const Route = createFileRoute('/dashboard/pacientes/')({
   component: PacientesPage,
 })
 
@@ -189,6 +190,7 @@ function PacientesPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <Outlet />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pacientes</h1>
@@ -298,6 +300,12 @@ function PacientesPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem asChild>
+                              <Link to={`/dashboard/pacientes/${patient.id as number}`}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Prontuário
+                              </Link>
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleOpenDialog(patient)}
                             >

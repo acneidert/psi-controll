@@ -145,7 +145,7 @@ export class CalendarService {
                 consultation.historico &&
                 Array.isArray(consultation.historico)
               ) {
-                for (const histDateStr of consultation.historico as string[]) {
+                for (const histDateStr of consultation.historico) {
                   const histDate = new Date(histDateStr)
                   events.push({
                     date: histDate,

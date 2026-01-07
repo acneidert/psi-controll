@@ -15,9 +15,10 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard/users'
 import { Route as DashboardTabelaPrecosRouteImport } from './routes/dashboard/tabela-precos'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
-import { Route as DashboardPacientesRouteImport } from './routes/dashboard/pacientes'
 import { Route as DashboardAgendaRouteImport } from './routes/dashboard/agenda'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
+import { Route as DashboardPacientesIndexRouteImport } from './routes/dashboard/pacientes/index'
+import { Route as DashboardPacientesPatientIdRouteImport } from './routes/dashboard/pacientes/$patientId'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
@@ -49,11 +50,6 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardPacientesRoute = DashboardPacientesRouteImport.update({
-  id: '/pacientes',
-  path: '/pacientes',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const DashboardAgendaRoute = DashboardAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -64,27 +60,40 @@ const DashboardAdminRoute = DashboardAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardPacientesIndexRoute = DashboardPacientesIndexRouteImport.update({
+  id: '/pacientes/',
+  path: '/pacientes/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPacientesPatientIdRoute =
+  DashboardPacientesPatientIdRouteImport.update({
+    id: '/pacientes/$patientId',
+    path: '/pacientes/$patientId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
-  '/dashboard/pacientes': typeof DashboardPacientesRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
-  '/dashboard/pacientes': typeof DashboardPacientesRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -92,11 +101,12 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
-  '/dashboard/pacientes': typeof DashboardPacientesRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/dashboard/pacientes/': typeof DashboardPacientesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -105,32 +115,35 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/dashboard/admin'
     | '/dashboard/agenda'
-    | '/dashboard/pacientes'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard/'
+    | '/dashboard/pacientes/$patientId'
+    | '/dashboard/pacientes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard/admin'
     | '/dashboard/agenda'
-    | '/dashboard/pacientes'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard'
+    | '/dashboard/pacientes/$patientId'
+    | '/dashboard/pacientes'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/dashboard/admin'
     | '/dashboard/agenda'
-    | '/dashboard/pacientes'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard/'
+    | '/dashboard/pacientes/$patientId'
+    | '/dashboard/pacientes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,13 +195,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/pacientes': {
-      id: '/dashboard/pacientes'
-      path: '/pacientes'
-      fullPath: '/dashboard/pacientes'
-      preLoaderRoute: typeof DashboardPacientesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/dashboard/agenda': {
       id: '/dashboard/agenda'
       path: '/agenda'
@@ -203,27 +209,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/pacientes/': {
+      id: '/dashboard/pacientes/'
+      path: '/pacientes'
+      fullPath: '/dashboard/pacientes'
+      preLoaderRoute: typeof DashboardPacientesIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/pacientes/$patientId': {
+      id: '/dashboard/pacientes/$patientId'
+      path: '/pacientes/$patientId'
+      fullPath: '/dashboard/pacientes/$patientId'
+      preLoaderRoute: typeof DashboardPacientesPatientIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 interface DashboardRouteChildren {
   DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardAgendaRoute: typeof DashboardAgendaRoute
-  DashboardPacientesRoute: typeof DashboardPacientesRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardTabelaPrecosRoute: typeof DashboardTabelaPrecosRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardPacientesPatientIdRoute: typeof DashboardPacientesPatientIdRoute
+  DashboardPacientesIndexRoute: typeof DashboardPacientesIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAdminRoute: DashboardAdminRoute,
   DashboardAgendaRoute: DashboardAgendaRoute,
-  DashboardPacientesRoute: DashboardPacientesRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardTabelaPrecosRoute: DashboardTabelaPrecosRoute,
   DashboardUsersRoute: DashboardUsersRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardPacientesPatientIdRoute: DashboardPacientesPatientIdRoute,
+  DashboardPacientesIndexRoute: DashboardPacientesIndexRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(

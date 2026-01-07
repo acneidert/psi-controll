@@ -354,7 +354,7 @@ function AgendaPage() {
                       const eDate = new Date(e.date)
                       if (!isSameDay(eDate, day)) return false
                       if (eDate.getHours() !== hour) return false
-                      
+
                       const m = eDate.getMinutes()
                       if (minute === 0) {
                         return m >= 0 && m < 30
@@ -434,7 +434,8 @@ function AgendaPage() {
                             </span>
                             {isGhost && event.newDate && (
                               <span className="text-[9px] text-muted-foreground/80 truncate block mt-0.5">
-                                Para: {format(new Date(event.newDate), 'dd/MM HH:mm')}
+                                Para:{' '}
+                                {format(new Date(event.newDate), 'dd/MM HH:mm')}
                               </span>
                             )}
                           </div>
