@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, lte, or } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, isNull, lte, or } from 'drizzle-orm'
 import { db } from '@/db'
 import { agendas, categoriasPreco, valoresPreco } from '@/db/schema'
 
@@ -46,7 +46,7 @@ export class PricingService {
         and(
           eq(valoresPreco.categoriaId, categoriaId),
           lte(valoresPreco.dataInicio, now),
-          or(isNull(valoresPreco.dataFim), gt(valoresPreco.dataFim, now)),
+          or(isNull(valoresPreco.dataFim), gte(valoresPreco.dataFim, now)),
         ),
       )
       .orderBy(desc(valoresPreco.dataInicio))
@@ -106,7 +106,12 @@ export class PricingService {
   static async calculateSessionPrice(agendaId: number, date: Date | string) {
     const dateStr =
       date instanceof Date
-        ? date.toISOString().split('T')[0]
+        ? new Intl.DateTimeFormat('fr-CA', {
+            timeZone: 'America/Sao_Paulo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(date)
         : date.split('T')[0]
 
     // 1. Get Agenda
@@ -132,7 +137,7 @@ export class PricingService {
           and(
             eq(valoresPreco.categoriaId, agenda.categoriaPrecoId),
             lte(valoresPreco.dataInicio, dateStr),
-            or(isNull(valoresPreco.dataFim), gt(valoresPreco.dataFim, dateStr)),
+            or(isNull(valoresPreco.dataFim), gte(valoresPreco.dataFim, dateStr)),
           ),
         )
         .orderBy(desc(valoresPreco.dataInicio))

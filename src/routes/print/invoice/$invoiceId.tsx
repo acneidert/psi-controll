@@ -28,6 +28,22 @@ function InvoicePrint() {
 
   const { config, paciente, itens } = invoice
 
+  const responsavelFinanceiro = paciente.responsaveis?.find(
+    (r: any) => r.financeiro,
+  )
+
+  const pagador = responsavelFinanceiro
+    ? {
+        nome: responsavelFinanceiro.nome,
+        cpf: responsavelFinanceiro.cpf,
+        endereco: responsavelFinanceiro.endereco || paciente.endereco,
+      }
+    : {
+        nome: paciente.nomeCompleto,
+        cpf: paciente.cpf,
+        endereco: paciente.endereco,
+      }
+
   return (
     <div className="min-h-screen bg-white p-8 print:p-0 text-black">
       <div className="mx-auto max-w-[210mm] space-y-8 print:max-w-none">
@@ -51,13 +67,22 @@ function InvoicePrint() {
           </div>
         </div>
 
-        {/* Patient Info */}
+        {/* Patient/Payer Info */}
         <div className="grid grid-cols-2 gap-8">
           <div>
-            <h3 className="font-semibold mb-2">Paciente</h3>
-            <p>{paciente.nomeCompleto}</p>
-            <p className="text-sm text-gray-600">CPF: {paciente.cpf || '-'}</p>
-            <p className="text-sm text-gray-600">{paciente.endereco || '-'}</p>
+            <h3 className="font-semibold mb-2">Tomador do Serviço</h3>
+            <p className="font-medium">{pagador.nome}</p>
+            <p className="text-sm text-gray-600">CPF: {pagador.cpf || '-'}</p>
+            <p className="text-sm text-gray-600">{pagador.endereco || '-'}</p>
+
+            {responsavelFinanceiro && (
+              <div className="mt-4 border-t pt-2">
+                <p className="text-xs text-gray-500 uppercase font-semibold">
+                  Paciente
+                </p>
+                <p className="text-sm">{paciente.nomeCompleto}</p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -15,9 +15,10 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardUsersRouteImport } from './routes/dashboard/users'
 import { Route as DashboardTabelaPrecosRouteImport } from './routes/dashboard/tabela-precos'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardFinanceiroRouteImport } from './routes/dashboard/financeiro'
 import { Route as DashboardAgendaRouteImport } from './routes/dashboard/agenda'
-import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as DashboardPacientesIndexRouteImport } from './routes/dashboard/pacientes/index'
+import { Route as PrintReceiptInvoiceIdRouteImport } from './routes/print/receipt/$invoiceId'
 import { Route as PrintInvoiceInvoiceIdRouteImport } from './routes/print/invoice/$invoiceId'
 import { Route as DashboardPacientesPatientIdRouteImport } from './routes/dashboard/pacientes/$patientId'
 
@@ -51,20 +52,25 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardFinanceiroRoute = DashboardFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAgendaRoute = DashboardAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardAdminRoute = DashboardAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardPacientesIndexRoute = DashboardPacientesIndexRouteImport.update({
   id: '/pacientes/',
   path: '/pacientes/',
   getParentRoute: () => DashboardRoute,
+} as any)
+const PrintReceiptInvoiceIdRoute = PrintReceiptInvoiceIdRouteImport.update({
+  id: '/print/receipt/$invoiceId',
+  path: '/print/receipt/$invoiceId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PrintInvoiceInvoiceIdRoute = PrintInvoiceInvoiceIdRouteImport.update({
   id: '/print/invoice/$invoiceId',
@@ -81,40 +87,43 @@ const DashboardPacientesPatientIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
+  '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
   '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
+  '/print/receipt/$invoiceId': typeof PrintReceiptInvoiceIdRoute
   '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
+  '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
   '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
+  '/print/receipt/$invoiceId': typeof PrintReceiptInvoiceIdRoute
   '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/dashboard/admin': typeof DashboardAdminRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
+  '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/tabela-precos': typeof DashboardTabelaPrecosRoute
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
   '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
+  '/print/receipt/$invoiceId': typeof PrintReceiptInvoiceIdRoute
   '/dashboard/pacientes/': typeof DashboardPacientesIndexRoute
 }
 export interface FileRouteTypes {
@@ -122,39 +131,42 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
-    | '/dashboard/admin'
     | '/dashboard/agenda'
+    | '/dashboard/financeiro'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard/'
     | '/dashboard/pacientes/$patientId'
     | '/print/invoice/$invoiceId'
+    | '/print/receipt/$invoiceId'
     | '/dashboard/pacientes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/dashboard/admin'
     | '/dashboard/agenda'
+    | '/dashboard/financeiro'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard'
     | '/dashboard/pacientes/$patientId'
     | '/print/invoice/$invoiceId'
+    | '/print/receipt/$invoiceId'
     | '/dashboard/pacientes'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
-    | '/dashboard/admin'
     | '/dashboard/agenda'
+    | '/dashboard/financeiro'
     | '/dashboard/settings'
     | '/dashboard/tabela-precos'
     | '/dashboard/users'
     | '/dashboard/'
     | '/dashboard/pacientes/$patientId'
     | '/print/invoice/$invoiceId'
+    | '/print/receipt/$invoiceId'
     | '/dashboard/pacientes/'
   fileRoutesById: FileRoutesById
 }
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   PrintInvoiceInvoiceIdRoute: typeof PrintInvoiceInvoiceIdRoute
+  PrintReceiptInvoiceIdRoute: typeof PrintReceiptInvoiceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -208,18 +221,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/financeiro': {
+      id: '/dashboard/financeiro'
+      path: '/financeiro'
+      fullPath: '/dashboard/financeiro'
+      preLoaderRoute: typeof DashboardFinanceiroRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/agenda': {
       id: '/dashboard/agenda'
       path: '/agenda'
       fullPath: '/dashboard/agenda'
       preLoaderRoute: typeof DashboardAgendaRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/admin': {
-      id: '/dashboard/admin'
-      path: '/admin'
-      fullPath: '/dashboard/admin'
-      preLoaderRoute: typeof DashboardAdminRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/pacientes/': {
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/pacientes'
       preLoaderRoute: typeof DashboardPacientesIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/print/receipt/$invoiceId': {
+      id: '/print/receipt/$invoiceId'
+      path: '/print/receipt/$invoiceId'
+      fullPath: '/print/receipt/$invoiceId'
+      preLoaderRoute: typeof PrintReceiptInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/print/invoice/$invoiceId': {
       id: '/print/invoice/$invoiceId'
@@ -247,8 +267,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface DashboardRouteChildren {
-  DashboardAdminRoute: typeof DashboardAdminRoute
   DashboardAgendaRoute: typeof DashboardAgendaRoute
+  DashboardFinanceiroRoute: typeof DashboardFinanceiroRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardTabelaPrecosRoute: typeof DashboardTabelaPrecosRoute
   DashboardUsersRoute: typeof DashboardUsersRoute
@@ -258,8 +278,8 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardAdminRoute: DashboardAdminRoute,
   DashboardAgendaRoute: DashboardAgendaRoute,
+  DashboardFinanceiroRoute: DashboardFinanceiroRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardTabelaPrecosRoute: DashboardTabelaPrecosRoute,
   DashboardUsersRoute: DashboardUsersRoute,
@@ -276,6 +296,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   PrintInvoiceInvoiceIdRoute: PrintInvoiceInvoiceIdRoute,
+  PrintReceiptInvoiceIdRoute: PrintReceiptInvoiceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

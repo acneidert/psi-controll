@@ -62,6 +62,19 @@ export const pacientes = pgTable('pacientes', {
   dataCadastro: timestamp('data_cadastro').defaultNow(),
 })
 
+export const responsaveis = pgTable('responsaveis', {
+  id: serial('id').primaryKey(),
+  pacienteId: integer('paciente_id')
+    .notNull()
+    .references(() => pacientes.id, { onDelete: 'cascade' }),
+  nome: varchar('nome', { length: 100 }).notNull(),
+  cpf: varchar('cpf', { length: 14 }),
+  telefone: varchar('telefone', { length: 20 }),
+  email: varchar('email', { length: 100 }),
+  endereco: text('endereco'),
+  financeiro: boolean('financeiro').default(false),
+})
+
 // 3. Sistema de Preços
 export const categoriasPreco = pgTable('categorias_preco', {
   id: serial('id').primaryKey(),
@@ -204,6 +217,14 @@ export const pacientesRelations = relations(pacientes, ({ many }) => ({
   faturas: many(faturas),
   anamnese: many(anamnese),
   evolucoes: many(evolucaoAtendimento),
+  responsaveis: many(responsaveis),
+}))
+
+export const responsaveisRelations = relations(responsaveis, ({ one }) => ({
+  paciente: one(pacientes, {
+    fields: [responsaveis.pacienteId],
+    references: [pacientes.id],
+  }),
 }))
 
 export const agendasRelations = relations(agendas, ({ one, many }) => ({

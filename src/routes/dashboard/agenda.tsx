@@ -7,9 +7,11 @@ import {
   ChevronRight,
   Plus,
   Settings,
+  AlertCircle,
 } from 'lucide-react'
 import { addDays, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { toast } from 'sonner'
 import { getCalendarEventsFn } from '@/server/functions/calendar'
 import {
   createAgendaFn,
@@ -71,6 +73,31 @@ function AgendaPage() {
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null)
   const [rescheduleTarget, setRescheduleTarget] = React.useState<string>('')
 
+  // Dialog States
+  const [confirmDialog, setConfirmDialog] = React.useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    onConfirm: () => void
+    variant?: 'default' | 'destructive'
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    variant: 'default',
+  })
+
+  const [terminateDialog, setTerminateDialog] = React.useState<{
+    isOpen: boolean
+    agendaId: number | null
+    date: string
+  }>({
+    isOpen: false,
+    agendaId: null,
+    date: format(new Date(), 'yyyy-MM-dd'),
+  })
+
   // Form State
   const [formData, setFormData] = React.useState({
     pacienteId: '',
@@ -111,7 +138,7 @@ function AgendaPage() {
   const handleCreate = async () => {
     try {
       if (!formData.pacienteId || !formData.hora || !formData.dataInicio) {
-        alert('Preencha os campos obrigatórios')
+        toast.warning('Preencha os campos obrigatórios')
         return
       }
 
@@ -134,25 +161,32 @@ function AgendaPage() {
 
       setIsCreateOpen(false)
       loadData()
-      alert('Agenda criada com sucesso!')
+      toast.success('Agenda criada com sucesso!')
     } catch (error: any) {
-      alert('Erro ao criar agenda: ' + error.message)
+      toast.error('Erro ao criar agenda: ' + error.message)
     }
   }
 
-  const handleTerminate = async (id: number) => {
-    const date = prompt(
-      'Data de encerramento (YYYY-MM-DD):',
-      format(new Date(), 'yyyy-MM-dd'),
-    )
-    if (date) {
-      try {
-        await terminateAgenda({ data: { id, endDate: date } })
-        listAgendas().then(setAgendas)
-        loadData()
-      } catch (error: any) {
-        alert('Erro ao encerrar: ' + error.message)
-      }
+  const handleTerminate = (id: number) => {
+    setTerminateDialog({
+      isOpen: true,
+      agendaId: id,
+      date: format(new Date(), 'yyyy-MM-dd'),
+    })
+  }
+
+  const executeTerminate = async () => {
+    if (!terminateDialog.agendaId || !terminateDialog.date) return
+    try {
+      await terminateAgenda({
+        data: { id: terminateDialog.agendaId, endDate: terminateDialog.date },
+      })
+      listAgendas().then(setAgendas)
+      loadData()
+      setTerminateDialog((prev) => ({ ...prev, isOpen: false }))
+      toast.success('Agenda encerrada com sucesso!')
+    } catch (error: any) {
+      toast.error('Erro ao encerrar: ' + error.message)
     }
   }
 
@@ -168,14 +202,14 @@ function AgendaPage() {
       })
       setIsDetailsOpen(false)
       loadData()
+      toast.success('Consulta confirmada!')
     } catch (e: any) {
-      alert(e.message)
+      toast.error(e.message)
     }
   }
 
-  const handleNoShow = async () => {
+  const executeNoShow = async () => {
     if (!selectedEvent) return
-    if (!confirm('Registrar falta?')) return
     try {
       await registerNoShow({
         data: {
@@ -186,14 +220,26 @@ function AgendaPage() {
       })
       setIsDetailsOpen(false)
       loadData()
+      setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+      toast.success('Falta registrada!')
     } catch (e: any) {
-      alert(e.message)
+      toast.error(e.message)
     }
   }
 
-  const handleCancel = async () => {
+  const handleNoShow = () => {
     if (!selectedEvent) return
-    if (!confirm('Cancelar consulta?')) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Registrar falta?',
+      description: 'Isso irá registrar uma falta para o paciente e gerar cobrança. Continuar?',
+      onConfirm: executeNoShow,
+      variant: 'default',
+    })
+  }
+
+  const executeCancel = async () => {
+    if (!selectedEvent) return
     try {
       await cancelConsultation({
         data: {
@@ -203,9 +249,22 @@ function AgendaPage() {
       })
       setIsDetailsOpen(false)
       loadData()
+      setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+      toast.success('Consulta cancelada!')
     } catch (e: any) {
-      alert(e.message)
+      toast.error(e.message)
     }
+  }
+
+  const handleCancel = () => {
+    if (!selectedEvent) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Cancelar consulta?',
+      description: 'Tem certeza que deseja cancelar esta consulta?',
+      onConfirm: executeCancel,
+      variant: 'destructive',
+    })
   }
 
   const handleReschedule = async () => {
@@ -224,8 +283,9 @@ function AgendaPage() {
       })
       setIsDetailsOpen(false)
       loadData()
+      toast.success('Consulta reagendada!')
     } catch (e: any) {
-      alert(e.message)
+      toast.error(e.message)
     }
   }
 
@@ -456,6 +516,7 @@ function AgendaPage() {
 
       {/* Dialog Nova Agenda */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        {/* ... existing content ... */}
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Nova Agenda / Recorrência</DialogTitle>
@@ -545,6 +606,88 @@ function AgendaPage() {
               Cancelar
             </Button>
             <Button onClick={handleCreate}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(open) =>
+          setConfirmDialog((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>{confirmDialog.description}</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+              }
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant={confirmDialog.variant || 'default'}
+              onClick={confirmDialog.onConfirm}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Termination Dialog */}
+      <Dialog
+        open={terminateDialog.isOpen}
+        onOpenChange={(open) =>
+          setTerminateDialog((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Encerrar Recorrência</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-yellow-50 text-yellow-800 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              <p>
+                Isso encerrará os agendamentos futuros a partir da data
+                selecionada.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label>Data de Encerramento</Label>
+              <Input
+                type="date"
+                value={terminateDialog.date}
+                onChange={(e) =>
+                  setTerminateDialog((prev) => ({
+                    ...prev,
+                    date: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setTerminateDialog((prev) => ({ ...prev, isOpen: false }))
+              }
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={executeTerminate}>
+              Encerrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

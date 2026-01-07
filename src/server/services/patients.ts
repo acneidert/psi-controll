@@ -1,29 +1,31 @@
 import { desc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { agendas, anamnese, pacientes } from '@/db/schema'
+import { agendas, anamnese, pacientes, responsaveis } from '@/db/schema'
 
 export class PatientService {
   static async listPatients(search?: string) {
     try {
-      const query = db.select().from(pacientes)
-
       if (search) {
         const searchLower = `%${search.toLowerCase()}%`
-        // @ts-ignore - like can handle generic sql expressions if needed but here simple strings
-        return await db
-          .select()
-          .from(pacientes)
-          .where(
-            or(
-              like(sql`lower(${pacientes.nomeCompleto})`, searchLower),
-              like(pacientes.cpf, searchLower),
-              like(pacientes.telefone, searchLower),
-            ),
-          )
-          .orderBy(desc(pacientes.dataCadastro))
+        return await db.query.pacientes.findMany({
+          where: or(
+            like(sql`lower(${pacientes.nomeCompleto})`, searchLower),
+            like(pacientes.cpf, searchLower),
+            like(pacientes.telefone, searchLower),
+          ),
+          with: {
+            responsaveis: true,
+          },
+          orderBy: [desc(pacientes.dataCadastro)],
+        })
       }
 
-      return await query.orderBy(desc(pacientes.dataCadastro))
+      return await db.query.pacientes.findMany({
+        with: {
+          responsaveis: true,
+        },
+        orderBy: [desc(pacientes.dataCadastro)],
+      })
     } catch (error) {
       console.error('Error listing patients:', error)
       throw new Error('Failed to list patients')
@@ -32,10 +34,12 @@ export class PatientService {
 
   static async getPatientById(id: number) {
     try {
-      const [patient] = await db
-        .select()
-        .from(pacientes)
-        .where(eq(pacientes.id, id))
+      const patient = await db.query.pacientes.findFirst({
+        where: eq(pacientes.id, id),
+        with: {
+          responsaveis: true,
+        },
+      })
       return patient
     } catch (error) {
       console.error('Error fetching patient:', error)
@@ -56,6 +60,14 @@ export class PatientService {
     estadoCivil?: string
     genero?: string
     observacoes?: string
+    responsaveis?: {
+      nome: string
+      cpf?: string
+      telefone?: string
+      email?: string
+      endereco?: string
+      financeiro?: boolean
+    }[]
   }) {
     try {
       if (data.cpf) {
@@ -67,8 +79,24 @@ export class PatientService {
         }
       }
 
-      const [newPatient] = await db.insert(pacientes).values(data).returning()
-      return newPatient
+      return await db.transaction(async (tx) => {
+        const { responsaveis: responsaveisList, ...patientData } = data
+        const [newPatient] = await tx
+          .insert(pacientes)
+          .values(patientData)
+          .returning()
+
+        if (responsaveisList && responsaveisList.length > 0) {
+          await tx.insert(responsaveis).values(
+            responsaveisList.map((r) => ({
+              ...r,
+              pacienteId: newPatient.id,
+            })),
+          )
+        }
+
+        return newPatient
+      })
     } catch (error: any) {
       console.error('Error creating patient:', error)
       throw new Error(error.message || 'Failed to create patient')
@@ -90,6 +118,14 @@ export class PatientService {
       estadoCivil?: string
       genero?: string
       observacoes?: string
+      responsaveis?: {
+        nome: string
+        cpf?: string
+        telefone?: string
+        email?: string
+        endereco?: string
+        financeiro?: boolean
+      }[]
     },
   ) {
     try {
@@ -102,13 +138,33 @@ export class PatientService {
         }
       }
 
-      const [updated] = await db
-        .update(pacientes)
-        .set(data)
-        .where(eq(pacientes.id, id))
-        .returning()
+      return await db.transaction(async (tx) => {
+        const { responsaveis: responsaveisList, ...patientData } = data
 
-      return updated
+        const [updated] = await tx
+          .update(pacientes)
+          .set(patientData)
+          .where(eq(pacientes.id, id))
+          .returning()
+
+        if (responsaveisList) {
+          // Replace all responsaveis
+          await tx
+            .delete(responsaveis)
+            .where(eq(responsaveis.pacienteId, id))
+
+          if (responsaveisList.length > 0) {
+            await tx.insert(responsaveis).values(
+              responsaveisList.map((r) => ({
+                ...r,
+                pacienteId: id,
+              })),
+            )
+          }
+        }
+
+        return updated
+      })
     } catch (error: any) {
       console.error('Error updating patient:', error)
       throw new Error(error.message || 'Failed to update patient')

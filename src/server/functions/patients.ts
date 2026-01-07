@@ -24,6 +24,18 @@ export const createPatientFn = createServerFn({ method: 'POST' })
       endereco?: string
       contatoEmergencia?: string
       telefoneEmergencia?: string
+      profissao?: string
+      estadoCivil?: string
+      genero?: string
+      observacoes?: string
+      responsaveis?: {
+        nome: string
+        cpf?: string
+        telefone?: string
+        email?: string
+        endereco?: string
+        financeiro?: boolean
+      }[]
     }) => data,
   )
   .handler(async ({ data }: { data: any }) => {
@@ -42,6 +54,18 @@ export const updatePatientFn = createServerFn({ method: 'POST' })
       endereco?: string
       contatoEmergencia?: string
       telefoneEmergencia?: string
+      profissao?: string
+      estadoCivil?: string
+      genero?: string
+      observacoes?: string
+      responsaveis?: {
+        nome: string
+        cpf?: string
+        telefone?: string
+        email?: string
+        endereco?: string
+        financeiro?: boolean
+      }[]
     }) => data,
   )
   .handler(async ({ data }: { data: any }) => {
