@@ -11,6 +11,9 @@
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"
   },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
