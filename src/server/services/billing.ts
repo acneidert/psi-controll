@@ -1,106 +1,145 @@
-import { eq, inArray } from 'drizzle-orm'
 import { db } from '@/db'
-import { consultas, faturaItens, faturas, pagamentos } from '@/db/schema'
+import {
+  faturas,
+  faturaItens,
+  consultas,
+  agendas,
+  configuracoes,
+} from '@/db/schema'
+import { eq, and, inArray, notExists, desc, sql } from 'drizzle-orm'
 
 export class BillingService {
-  /**
-   * RN-11 & RN-12: Criar Fatura
-   */
-  static async createInvoice(
-    patientId: number,
-    consultationIds: Array<number>,
-  ) {
-    // 1. Validar Elegibilidade (RN-11)
-    const validConsultations = await db.query.consultas.findMany({
-      where: inArray(consultas.id, consultationIds),
+  static async getInvoice(invoiceId: number) {
+    const invoice = await db.query.faturas.findFirst({
+      where: eq(faturas.id, invoiceId),
+      with: {
+        paciente: true,
+        itens: {
+          with: {
+            consulta: true,
+          },
+        },
+      },
     })
 
-    const eligibleConsultations = validConsultations.filter(
-      (c) =>
-        c.status === 'realizada' || (c.status === 'falta' && c.cobrarFalta),
-    )
+    if (!invoice) return null
 
-    if (eligibleConsultations.length !== consultationIds.length) {
-      throw new Error('Some consultations are not eligible for billing')
+    // Get config (assuming id 1)
+    const [config] = await db.select().from(configuracoes).limit(1)
+
+    return {
+      ...invoice,
+      config,
     }
+  }
 
-    // RN-13: Validar se já estão faturadas
-    // (Isso geraria erro de constraint no banco, mas podemos checar antes)
+  static async getPendingConsultations(patientId: number) {
+    // Consultas realizadas ou faltas cobráveis que não estão em nenhuma fatura
+    const pendingConsultations = await db
+      .select({
+        id: consultas.id,
+        data: consultas.dataPrevista,
+        valor: consultas.valorCobrado,
+        status: consultas.status,
+      })
+      .from(consultas)
+      .innerJoin(agendas, eq(consultas.agendaId, agendas.id))
+      .where(
+        and(
+          eq(agendas.pacienteId, patientId),
+          sql`(${consultas.status} = 'realizada' OR (${consultas.status} = 'falta' AND ${consultas.cobrarFalta} = true))`,
+          notExists(
+            db
+              .select()
+              .from(faturaItens)
+              .where(eq(faturaItens.consultaId, consultas.id))
+          )
+        )
+      )
+      .orderBy(desc(consultas.dataPrevista))
 
-    // 2. Calcular Total (RN-12)
-    const totalAmount = eligibleConsultations.reduce(
-      (acc, curr) => acc + Number(curr.valorCobrado),
-      0,
-    )
+    return pendingConsultations
+  }
 
-    // 3. Criar Fatura e Itens Transacionalmente
+  static async createInvoice({
+    patientId,
+    consultationIds,
+    dueDate,
+    discount = 0,
+    observations,
+  }: {
+    patientId: number
+    consultationIds: number[]
+    dueDate: Date
+    discount?: number
+    observations?: string
+  }) {
     return await db.transaction(async (tx) => {
+      // 1. Buscar consultas para validar e somar valores
+      const selectedConsultations = await tx
+        .select()
+        .from(consultas)
+        .where(inArray(consultas.id, consultationIds))
+
+      if (selectedConsultations.length !== consultationIds.length) {
+        throw new Error('Algumas consultas não foram encontradas.')
+      }
+
+      // Validar se já estão faturadas
+      const existingItems = await tx
+        .select()
+        .from(faturaItens)
+        .where(inArray(faturaItens.consultaId, consultationIds))
+      
+      if (existingItems.length > 0) {
+        throw new Error('Algumas consultas já foram faturadas.')
+      }
+
+      // 2. Calcular total
+      const subtotal = selectedConsultations.reduce(
+        (sum, c) => sum + Number(c.valorCobrado),
+        0
+      )
+      const total = Math.max(0, subtotal - discount)
+
+      // 3. Criar Fatura
       const [newInvoice] = await tx
         .insert(faturas)
         .values({
           pacienteId: patientId,
-          dataEmissao: new Date().toISOString(), // Hoje
-          valorTotal: totalAmount.toString(),
+          dataEmissao: new Date().toISOString().split('T')[0], // Hoje
+          dataVencimento: dueDate.toISOString().split('T')[0],
+          valorTotal: total.toString(),
+          desconto: discount.toString(),
           status: 'aberta',
-          observacoes: `Fatura gerada para ${eligibleConsultations.length} atendimentos.`,
+          observacoes: observations,
         })
         .returning()
 
-      for (const consultation of eligibleConsultations) {
-        await tx.insert(faturaItens).values({
+      // 4. Criar Itens da Fatura
+      await tx.insert(faturaItens).values(
+        selectedConsultations.map((c) => ({
           faturaId: newInvoice.id,
-          consultaId: consultation.id,
-          valorItem: consultation.valorCobrado, // RN-12 (Padrão igual ao cobrado)
-        })
-      }
+          consultaId: c.id,
+          valorItem: c.valorCobrado,
+        }))
+      )
 
       return newInvoice
     })
   }
 
-  /**
-   * RN-14: Registrar Pagamento e Baixar Fatura
-   */
-  static async registerPayment(
-    faturaId: number,
-    amount: number,
-    method: string,
-  ) {
-    return await db.transaction(async (tx) => {
-      // 1. Registrar Pagamento
-      await tx.insert(pagamentos).values({
-        faturaId,
-        dataPagamento: new Date().toISOString(),
-        valorPago: amount.toString(),
-        formaPagamento: method,
-      })
-
-      // 2. Verificar se quita a fatura
-      const invoice = await tx.query.faturas.findFirst({
-        where: eq(faturas.id, faturaId),
-        with: {
-          pagamentos: true,
+  static async getInvoices(patientId: number) {
+    return await db.query.faturas.findMany({
+      where: eq(faturas.pacienteId, patientId),
+      with: {
+        itens: {
+          with: {
+            consulta: true,
+          },
         },
-      })
-
-      if (!invoice) throw new Error('Invoice not found')
-
-      // Re-query ou somar manual (assumindo isolamento padrão read committed pode não ver o insert da própria tx em alguns dbs sem refresh, mas no Postgres na mesma Tx vê)
-      // Vamos simplificar:
-      const allPayments = await tx.query.pagamentos.findMany({
-        where: eq(pagamentos.faturaId, faturaId),
-      })
-      const realTotalPaid = allPayments.reduce(
-        (acc, p) => acc + Number(p.valorPago),
-        0,
-      )
-
-      if (realTotalPaid >= Number(invoice.valorTotal)) {
-        await tx
-          .update(faturas)
-          .set({ status: 'paga' })
-          .where(eq(faturas.id, faturaId))
-      }
+      },
+      orderBy: [desc(faturas.dataEmissao)],
     })
   }
 }

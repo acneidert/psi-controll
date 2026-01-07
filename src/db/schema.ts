@@ -167,7 +167,9 @@ export const faturas = pgTable('faturas', {
     .notNull()
     .references(() => pacientes.id),
   dataEmissao: date('data_emissao').notNull(),
+  dataVencimento: date('data_vencimento'),
   valorTotal: decimal('valor_total', { precision: 10, scale: 2 }).notNull(),
+  desconto: decimal('desconto', { precision: 10, scale: 2 }).default('0'),
   status: statusFaturaEnum('status').default('aberta'),
   observacoes: text('observacoes'),
 })
@@ -255,5 +257,12 @@ export const valoresPrecoRelations = relations(valoresPreco, ({ one }) => ({
   categoria: one(categoriasPreco, {
     fields: [valoresPreco.categoriaId],
     references: [categoriasPreco.id],
+  }),
+}))
+
+export const pagamentosRelations = relations(pagamentos, ({ one }) => ({
+  fatura: one(faturas, {
+    fields: [pagamentos.faturaId],
+    references: [faturas.id],
   }),
 }))

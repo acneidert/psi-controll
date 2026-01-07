@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { cn } from '@/lib/utils'
+import { BillingTab } from './components/billing-tab'
 
 export const Route = createFileRoute('/dashboard/pacientes/$patientId')({
   component: PatientDetailsPage,
@@ -102,6 +103,7 @@ function PatientDetailsPage() {
         <TabsList>
           <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
           <TabsTrigger value="evolucao">Evolução</TabsTrigger>
+          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="dados">Dados Cadastrais</TabsTrigger>
         </TabsList>
 
@@ -156,10 +158,14 @@ function PatientDetailsPage() {
         </TabsContent>
 
         <TabsContent value="evolucao">
-          <EvolucaoList patientId={patientId} />
-        </TabsContent>
+            <EvolucaoList patientId={patientId} />
+          </TabsContent>
 
-        <TabsContent value="dados">
+          <TabsContent value="financeiro">
+            <BillingTab patientId={patientId} />
+          </TabsContent>
+
+          <TabsContent value="dados">
           <Card>
             <CardHeader>
               <CardTitle>Dados do Paciente</CardTitle>

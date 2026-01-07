@@ -18,6 +18,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settin
 import { Route as DashboardAgendaRouteImport } from './routes/dashboard/agenda'
 import { Route as DashboardAdminRouteImport } from './routes/dashboard/admin'
 import { Route as DashboardPacientesIndexRouteImport } from './routes/dashboard/pacientes/index'
+import { Route as PrintInvoiceInvoiceIdRouteImport } from './routes/print/invoice/$invoiceId'
 import { Route as DashboardPacientesPatientIdRouteImport } from './routes/dashboard/pacientes/$patientId'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -65,6 +66,11 @@ const DashboardPacientesIndexRoute = DashboardPacientesIndexRouteImport.update({
   path: '/pacientes/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const PrintInvoiceInvoiceIdRoute = PrintInvoiceInvoiceIdRouteImport.update({
+  id: '/print/invoice/$invoiceId',
+  path: '/print/invoice/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPacientesPatientIdRoute =
   DashboardPacientesPatientIdRouteImport.update({
     id: '/pacientes/$patientId',
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
   '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
   '/dashboard/pacientes': typeof DashboardPacientesIndexRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/dashboard/users': typeof DashboardUsersRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/pacientes/$patientId': typeof DashboardPacientesPatientIdRoute
+  '/print/invoice/$invoiceId': typeof PrintInvoiceInvoiceIdRoute
   '/dashboard/pacientes/': typeof DashboardPacientesIndexRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/'
     | '/dashboard/pacientes/$patientId'
+    | '/print/invoice/$invoiceId'
     | '/dashboard/pacientes'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard'
     | '/dashboard/pacientes/$patientId'
+    | '/print/invoice/$invoiceId'
     | '/dashboard/pacientes'
   id:
     | '__root__'
@@ -143,12 +154,14 @@ export interface FileRouteTypes {
     | '/dashboard/users'
     | '/dashboard/'
     | '/dashboard/pacientes/$patientId'
+    | '/print/invoice/$invoiceId'
     | '/dashboard/pacientes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  PrintInvoiceInvoiceIdRoute: typeof PrintInvoiceInvoiceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -216,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPacientesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/print/invoice/$invoiceId': {
+      id: '/print/invoice/$invoiceId'
+      path: '/print/invoice/$invoiceId'
+      fullPath: '/print/invoice/$invoiceId'
+      preLoaderRoute: typeof PrintInvoiceInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/pacientes/$patientId': {
       id: '/dashboard/pacientes/$patientId'
       path: '/pacientes/$patientId'
@@ -255,6 +275,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  PrintInvoiceInvoiceIdRoute: PrintInvoiceInvoiceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
