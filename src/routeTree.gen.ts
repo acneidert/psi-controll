@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PrintRouteImport } from './routes/print'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
@@ -17,11 +19,22 @@ import { Route as DashboardTabelaPrecosRouteImport } from './routes/dashboard/ta
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as DashboardFinanceiroRouteImport } from './routes/dashboard/financeiro'
 import { Route as DashboardAgendaRouteImport } from './routes/dashboard/agenda'
+import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as DashboardPacientesIndexRouteImport } from './routes/dashboard/pacientes/index'
 import { Route as PrintReceiptInvoiceIdRouteImport } from './routes/print/receipt/$invoiceId'
 import { Route as PrintInvoiceInvoiceIdRouteImport } from './routes/print/invoice/$invoiceId'
 import { Route as DashboardPacientesPatientIdRouteImport } from './routes/dashboard/pacientes/$patientId'
 
+const PrintRoute = PrintRouteImport.update({
+  id: '/print',
+  path: '/print',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -62,20 +75,25 @@ const DashboardAgendaRoute = DashboardAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => DashboardRoute,
 } as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardPacientesIndexRoute = DashboardPacientesIndexRouteImport.update({
   id: '/pacientes/',
   path: '/pacientes/',
   getParentRoute: () => DashboardRoute,
 } as any)
 const PrintReceiptInvoiceIdRoute = PrintReceiptInvoiceIdRouteImport.update({
-  id: '/print/receipt/$invoiceId',
-  path: '/print/receipt/$invoiceId',
-  getParentRoute: () => rootRouteImport,
+  id: '/receipt/$invoiceId',
+  path: '/receipt/$invoiceId',
+  getParentRoute: () => PrintRoute,
 } as any)
 const PrintInvoiceInvoiceIdRoute = PrintInvoiceInvoiceIdRouteImport.update({
-  id: '/print/invoice/$invoiceId',
-  path: '/print/invoice/$invoiceId',
-  getParentRoute: () => rootRouteImport,
+  id: '/invoice/$invoiceId',
+  path: '/invoice/$invoiceId',
+  getParentRoute: () => PrintRoute,
 } as any)
 const DashboardPacientesPatientIdRoute =
   DashboardPacientesPatientIdRouteImport.update({
@@ -87,6 +105,9 @@ const DashboardPacientesPatientIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
+  '/print': typeof PrintRouteWithChildren
+  '/api/$': typeof ApiSplatRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
   '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -100,6 +121,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/print': typeof PrintRouteWithChildren
+  '/api/$': typeof ApiSplatRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
   '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -115,6 +139,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
+  '/print': typeof PrintRouteWithChildren
+  '/api/$': typeof ApiSplatRoute
   '/dashboard/agenda': typeof DashboardAgendaRoute
   '/dashboard/financeiro': typeof DashboardFinanceiroRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
@@ -131,6 +158,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/login'
+    | '/print'
+    | '/api/$'
     | '/dashboard/agenda'
     | '/dashboard/financeiro'
     | '/dashboard/settings'
@@ -144,6 +174,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
+    | '/print'
+    | '/api/$'
     | '/dashboard/agenda'
     | '/dashboard/financeiro'
     | '/dashboard/settings'
@@ -158,6 +191,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/login'
+    | '/print'
+    | '/api/$'
     | '/dashboard/agenda'
     | '/dashboard/financeiro'
     | '/dashboard/settings'
@@ -173,12 +209,27 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
-  PrintInvoiceInvoiceIdRoute: typeof PrintInvoiceInvoiceIdRoute
-  PrintReceiptInvoiceIdRoute: typeof PrintReceiptInvoiceIdRoute
+  LoginRoute: typeof LoginRoute
+  PrintRoute: typeof PrintRouteWithChildren
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/print': {
+      id: '/print'
+      path: '/print'
+      fullPath: '/print'
+      preLoaderRoute: typeof PrintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -235,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAgendaRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/pacientes/': {
       id: '/dashboard/pacientes/'
       path: '/pacientes'
@@ -244,17 +302,17 @@ declare module '@tanstack/react-router' {
     }
     '/print/receipt/$invoiceId': {
       id: '/print/receipt/$invoiceId'
-      path: '/print/receipt/$invoiceId'
+      path: '/receipt/$invoiceId'
       fullPath: '/print/receipt/$invoiceId'
       preLoaderRoute: typeof PrintReceiptInvoiceIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PrintRoute
     }
     '/print/invoice/$invoiceId': {
       id: '/print/invoice/$invoiceId'
-      path: '/print/invoice/$invoiceId'
+      path: '/invoice/$invoiceId'
       fullPath: '/print/invoice/$invoiceId'
       preLoaderRoute: typeof PrintInvoiceInvoiceIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PrintRoute
     }
     '/dashboard/pacientes/$patientId': {
       id: '/dashboard/pacientes/$patientId'
@@ -292,11 +350,24 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface PrintRouteChildren {
+  PrintInvoiceInvoiceIdRoute: typeof PrintInvoiceInvoiceIdRoute
+  PrintReceiptInvoiceIdRoute: typeof PrintReceiptInvoiceIdRoute
+}
+
+const PrintRouteChildren: PrintRouteChildren = {
+  PrintInvoiceInvoiceIdRoute: PrintInvoiceInvoiceIdRoute,
+  PrintReceiptInvoiceIdRoute: PrintReceiptInvoiceIdRoute,
+}
+
+const PrintRouteWithChildren = PrintRoute._addFileChildren(PrintRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
-  PrintInvoiceInvoiceIdRoute: PrintInvoiceInvoiceIdRoute,
-  PrintReceiptInvoiceIdRoute: PrintReceiptInvoiceIdRoute,
+  LoginRoute: LoginRoute,
+  PrintRoute: PrintRouteWithChildren,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

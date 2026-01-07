@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Calendar,
   LayoutDashboard,
@@ -8,9 +8,11 @@ import {
   ShieldCheck,
   Users,
   Banknote,
+  LogOut,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { authClient } from '@/lib/auth-client'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -18,6 +20,39 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false)
+  const { data: session } = authClient.useSession()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await authClient.signOut()
+    navigate({ to: '/login' })
+  }
+
+  const UserSection = () => (
+    <div className="mt-auto p-4 border-t">
+      <div className="flex items-center justify-between gap-2 px-2 py-2">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-xs font-bold text-primary">
+              {session?.user?.name?.substring(0, 2).toUpperCase() || 'US'}
+            </span>
+          </div>
+          <div className="flex flex-col truncate max-w-[120px]">
+            <span className="text-sm font-medium text-foreground truncate">
+              {session?.user?.name || 'Usuário'}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">
+              {session?.user?.email || ''}
+            </span>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" onClick={handleLogout} title="Sair">
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+
 
   return (
     <div className="flex h-screen w-full bg-background">
@@ -69,23 +104,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Link>
           </nav>
         </div>
-        <div className="mt-auto p-4">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">AD</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">
-                  Admin User
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  admin@psicontrol.com
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UserSection />
       </aside>
 
       {/* Mobile Sidebar Overlay */}
@@ -164,6 +183,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             </nav>
           </div>
+          <UserSection />
         </aside>
       )}
 

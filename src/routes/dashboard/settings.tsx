@@ -37,6 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { format, parseISO } from 'date-fns'
 
 export const Route = createFileRoute('/dashboard/settings')({
   component: SettingsPage,
@@ -385,10 +386,15 @@ function SettingsPage() {
                     {priceHistory.map((price) => (
                       <TableRow key={price.id}>
                         <TableCell>
-                          {new Date(price.dataVigencia).toLocaleDateString(
-                            'pt-BR',
-                            { timeZone: 'UTC' },
-                          )}
+                          De {' ' + format(
+                            parseISO(price.dataInicio),
+                            'dd/MM/yyyy',
+                          )+' ' }
+                          Até{' '}
+                          {price.dataFim ? format(
+                            parseISO(price.dataFim),
+                            'dd/MM/yyyy',
+                          ) : 'Agora'}
                         </TableCell>
                         <TableCell className="text-right">
                           {new Intl.NumberFormat('pt-BR', {
