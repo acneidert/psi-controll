@@ -589,11 +589,11 @@ function AgendaPage() {
                     </td>
                     <td className="p-2 capitalize">{agenda.frequencia}</td>
                     <td className="p-2">
-                      {format(new Date(agenda.dataInicio), 'dd/MM/yyyy')}
+                      {agenda.dataInicio.split('-').reverse().join('/')}
                     </td>
                     <td className="p-2">
                       {agenda.dataFim
-                        ? format(new Date(agenda.dataFim), 'dd/MM/yyyy')
+                        ? agenda.dataFim.split('-').reverse().join('/')
                         : '-'}
                     </td>
                     <td className="p-2">

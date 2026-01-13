@@ -1,5 +1,5 @@
 import { and, eq, gte, lte, or } from 'drizzle-orm'
-import { addDays, getDay, isAfter, isBefore, isSameDay } from 'date-fns'
+import { addDays, format, getDay, isAfter, isBefore, isSameDay } from 'date-fns'
 import { db } from '@/db'
 import { agendas, consultas } from '@/db/schema'
 
@@ -109,8 +109,12 @@ export class CalendarService {
           // Combinar Data + Hora
           // agenda.hora é string "HH:MM:SS"
           const [hours, minutes] = agenda.hora.split(':').map(Number)
-          const slotDateTime = new Date(currentDate)
-          slotDateTime.setHours(hours, minutes, 0, 0)
+          
+          // Fix Timezone Issue: Force -03:00 (Brazil)
+          // We take the UTC date (which aligns with the intended day) and append the time with Brazil offset.
+          const dateStr = currentDate.toISOString().split('T')[0]
+          const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+          const slotDateTime = new Date(`${dateStr}T${timeStr}-03:00`)
 
           // Verificar se existe consulta (Exceção)
           const consultation = existingConsultations.find(
@@ -139,7 +143,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
-                patientEmail: agenda.paciente.email,
+                patientEmail: agenda?.paciente?.email || '',
               })
 
               // Adicionar eventos fantasmas do histórico (Reagendamentos intermediários)
@@ -159,7 +163,7 @@ export class CalendarService {
                     consultationId: consultation.id,
                     patientId: agenda.pacienteId,
                     patientName: agenda.paciente.nomeCompleto,
-                    patientEmail: agenda.paciente.email,
+                    patientEmail: agenda?.paciente?.email || '',
                   })
                 }
               }
@@ -174,7 +178,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
-                patientEmail: agenda.paciente.email,
+                patientEmail: agenda?.paciente?.email || '',
               })
             } else {
               // Slot Ocupado (Sem mudança de horário ou cancelado/realizado no mesmo horário)
@@ -187,7 +191,7 @@ export class CalendarService {
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
-                patientEmail: agenda.paciente.email,
+                patientEmail: agenda?.paciente?.email || '',
               })
             }
           } else {
@@ -200,7 +204,7 @@ export class CalendarService {
               status: 'disponivel', // Representa o "Padrão" da agenda
               patientId: agenda.pacienteId,
               patientName: agenda.paciente.nomeCompleto,
-              patientEmail: agenda.paciente.email,
+              patientEmail: agenda?.paciente?.email || '',
             })
           }
         }
@@ -222,7 +226,7 @@ export class CalendarService {
           consultationId: c.id,
           patientId: c.agenda.pacienteId,
           patientName: c.agenda.paciente.nomeCompleto,
-          patientEmail: c.agenda.paciente.email,
+          patientEmail: c.agenda?.paciente?.email || '',
         })
       }
     }
