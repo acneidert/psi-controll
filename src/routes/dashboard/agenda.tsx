@@ -37,6 +37,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { CalendarHeader } from '@/components/calendar/calendar-header'
+import { CalendarGrid } from '@/components/calendar/calendar-grid'
 
 export const Route = createFileRoute('/dashboard/agenda')({
   component: AgendaPage,
@@ -305,7 +307,7 @@ function AgendaPage() {
     return days
   }, [startDate])
 
-  // Hours 8:00 to 22:00 in 30 min intervals
+  // Hours 5:00 to 23:30 in 30 min intervals
   const timeSlots = React.useMemo(() => {
     const slots = []
     for (let h = 5; h <= 23; h++) {
@@ -316,203 +318,64 @@ function AgendaPage() {
   }, [])
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full gap-4 p-4 md:p-6 bg-muted/10">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6" />
-          Agenda
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+               <CalendarIcon className="h-6 w-6" />
+            </div>
+            Agenda
         </h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setIsManageOpen(true)}>
-            <Settings className="h-4 w-4 mr-2" />
-            Gerenciar
+          <Button variant="outline" onClick={() => setIsManageOpen(true)} className="gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Gerenciar</span>
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Agenda
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 shadow-sm">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nova Agenda</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between bg-card p-2 rounded-lg border">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevPeriod}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-sm font-medium w-32 text-center">
-            {format(startDate, 'dd/MM', { locale: ptBR })} -{' '}
-            {format(endDate, 'dd/MM', { locale: ptBR })}
-          </div>
-          <Button variant="outline" size="icon" onClick={nextPeriod}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={() => setCurrentDate(new Date())}>
-            Hoje
-          </Button>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div>
-            <span>Agendado</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-            <span>Realizado</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded opacity-60 line-through decoration-gray-500"></div>
-            <span className="line-through decoration-gray-500">Reagendado</span>
-          </div>
-        </div>
-      </div>
+      <CalendarHeader 
+        currentDate={currentDate}
+        onPrev={prevPeriod}
+        onNext={nextPeriod}
+        onToday={() => setCurrentDate(new Date())}
+        startDate={startDate}
+        endDate={endDate}
+      >
+         <div className="flex items-center gap-2 text-xs font-medium border rounded-lg p-1 bg-background shadow-sm">
+             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
+               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+               <span>Agendado</span>
+             </div>
+             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50">
+               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+               <span>Realizado</span>
+             </div>
+         </div>
+      </CalendarHeader>
 
-      <div className="flex-1 border rounded-lg overflow-auto bg-card">
-        <div className="grid grid-cols-[60px_1fr] h-full min-w-[800px]">
-          {/* Time Column */}
-          <div className="border-r bg-muted/20">
-            <div className="h-12 border-b"></div> {/* Header spacer */}
-            {timeSlots.map(({ label }) => (
-              <div
-                key={label}
-                className="h-12 border-b text-xs text-muted-foreground p-2 text-center flex items-center justify-center"
-              >
-                {label}
-              </div>
-            ))}
-          </div>
-
-          {/* Days Columns */}
-          <div className="grid grid-cols-7 divide-x">
-            {/* Headers */}
-            {daysToRender.map((day) => (
-              <div key={day.toString()} className="flex flex-col">
-                <div
-                  className={cn(
-                    'h-12 border-b flex flex-col items-center justify-center p-1',
-                    isSameDay(day, new Date()) && 'bg-primary/5',
-                  )}
-                >
-                  <span className="text-xs text-muted-foreground uppercase">
-                    {format(day, 'EEE', { locale: ptBR })}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-sm font-bold h-7 w-7 flex items-center justify-center rounded-full',
-                      isSameDay(day, new Date()) &&
-                        'bg-primary text-primary-foreground',
-                    )}
-                  >
-                    {format(day, 'd')}
-                  </span>
-                </div>
-
-                {/* Grid Cells */}
-                <div className="relative flex-1">
-                  {timeSlots.map(({ hour, minute, label }) => {
-                    // Encontrar eventos para este dia e hora (Lógica de Bucket 30min)
-                    const event = events.find((e) => {
-                      const eDate = new Date(e.date)
-                      if (!isSameDay(eDate, day)) return false
-                      if (eDate.getHours() !== hour) return false
-
-                      const m = eDate.getMinutes()
-                      if (minute === 0) {
-                        return m >= 0 && m < 30
-                      } else {
-                        return m >= 30 && m < 60
-                      }
-                    })
-
-                    const isGhost = event?.status === 'reagendado-origem'
-
-                    return (
-                      <div
-                        key={label}
-                        className="h-12 border-b relative group"
-                        onClick={() => {
-                          if (event) {
-                            setSelectedEvent(event)
-                            setIsDetailsOpen(true)
-                          } else {
-                            setFormData({
-                              ...formData,
-                              dataInicio: format(day, 'yyyy-MM-dd'),
-                              hora: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-                              diaSemana: day.getDay().toString(),
-                            })
-                            setIsCreateOpen(true)
-                          }
-                        }}
-                      >
-                        {/* Render Event or Empty Slot */}
-                        {event ? (
-                          <div
-                            className={cn(
-                              'absolute inset-0.5 rounded-md p-1 text-[10px] font-medium cursor-pointer transition-colors overflow-hidden flex flex-col gap-0.5 shadow-sm border',
-                              isGhost && 'opacity-60',
-                            )}
-                            style={{
-                              backgroundColor:
-                                event.type === 'consultation'
-                                  ? isGhost
-                                    ? '#f1f5f9'
-                                    : event.status === 'realizada'
-                                      ? '#dcfce7'
-                                      : event.status === 'cancelada'
-                                        ? '#fee2e2'
-                                        : '#e0f2fe'
-                                  : '#f8fafc',
-                              borderColor:
-                                event.type === 'consultation'
-                                  ? 'transparent'
-                                  : '#e2e8f0',
-                              borderStyle:
-                                event.type === 'slot' ? 'dashed' : 'solid',
-                              textDecoration: isGhost ? 'line-through' : 'none',
-                            }}
-                          >
-                            <span
-                              className={cn(
-                                'font-bold truncate',
-                                isGhost
-                                  ? 'text-muted-foreground'
-                                  : event.status === 'realizada'
-                                    ? 'text-green-700'
-                                    : event.status === 'cancelada'
-                                      ? 'text-red-700'
-                                      : 'text-blue-700',
-                              )}
-                            >
-                              {event.patientName || 'Paciente'}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground truncate">
-                              {event.type === 'slot'
-                                ? 'Recorrência'
-                                : isGhost
-                                  ? 'Reagendado'
-                                  : event.status}
-                            </span>
-                            {isGhost && event.newDate && (
-                              <span className="text-[9px] text-muted-foreground/80 truncate block mt-0.5">
-                                Para:{' '}
-                                {format(new Date(event.newDate), 'dd/MM HH:mm')}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 hover:bg-muted/10 cursor-pointer transition-all flex items-center justify-center">
-                            <Plus className="text-muted-foreground/50 h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <CalendarGrid 
+        days={daysToRender}
+        timeSlots={timeSlots}
+        events={events}
+        onEventClick={(event) => {
+             setSelectedEvent(event)
+             setIsDetailsOpen(true)
+        }}
+        onSlotClick={(date, hour, minute) => {
+             setFormData({
+               ...formData,
+               dataInicio: format(date, 'yyyy-MM-dd'),
+               hora: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
+               diaSemana: date.getDay().toString(),
+             })
+             setIsCreateOpen(true)
+        }}
+      />
 
       {/* Dialog Nova Agenda */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
