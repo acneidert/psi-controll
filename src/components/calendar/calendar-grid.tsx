@@ -78,8 +78,10 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
             
             {/* Grid */}
             <div className="grid grid-cols-7 divide-x relative">
-               {days.map((day) => (
-                 <div key={day.toString()} className="divide-y relative bg-background">
+               {days.map((day) => {
+                 const isSunday = day.getDay() === 0
+                 return (
+                 <div key={day.toString()} className={cn("divide-y relative bg-background", isSunday && "bg-muted/5")}>
                     {timeSlots.map(({ hour, minute, label }) => {
                        const event = getEventForSlot(day, hour, minute)
                        const isGhost = event?.status === 'reagendado-origem'
@@ -87,37 +89,43 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
                        return (
                          <div 
                            key={`${day}-${label}`} 
-                           className="h-20 relative group transition-colors hover:bg-muted/5 border-b border-dashed border-b-gray-100 last:border-b-0"
+                           className={cn(
+                             "h-20 relative group transition-colors border-b border-dashed border-b-gray-100 last:border-b-0",
+                             !isSunday && "hover:bg-muted/5",
+                             isSunday && "bg-[image:repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.05)_10px,rgba(0,0,0,0.05)_20px)]"
+                           )}
                            onClick={() => {
-                             if (!event) onSlotClick(day, hour, minute)
+                             if (!isSunday && !event) onSlotClick(day, hour, minute)
                            }}
                          >
                             {event ? (
-                             <>
-                               <CalendarEventCard 
-                                 event={event} 
-                                 onClick={onEventClick} 
-                                 isGhost={isGhost}
-                               />
-                               {isGhost && (
-                                  <div 
-                                     className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer bg-primary text-primary-foreground rounded-full p-1 shadow-sm hover:scale-110"
-                                     onClick={(e) => {
-                                       e.stopPropagation()
-                                       onSlotClick(day, hour, minute)
-                                     }}
-                                     title="Adicionar agendamento"
-                                  >
-                                     <Plus className="h-3 w-3" />
-                                  </div>
-                               )}
-                             </>
-                           ) : (
-                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                  <div className="bg-primary/10 text-primary rounded-md p-1">
-                                    <Plus className="h-4 w-4" />
-                                  </div>
-                               </div>
+                              <>
+                                <CalendarEventCard 
+                                  event={event} 
+                                  onClick={onEventClick} 
+                                  isGhost={isGhost}
+                                />
+                                {isGhost && !isSunday && (
+                                   <div 
+                                      className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer bg-primary text-primary-foreground rounded-full p-1 shadow-sm hover:scale-110"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        onSlotClick(day, hour, minute)
+                                      }}
+                                      title="Adicionar agendamento"
+                                   >
+                                      <Plus className="h-3 w-3" />
+                                   </div>
+                                )}
+                              </>
+                            ) : (
+                                !isSunday && (
+                                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                      <div className="bg-primary/10 text-primary rounded-md p-1">
+                                        <Plus className="h-4 w-4" />
+                                      </div>
+                                   </div>
+                                )
                             )}
                          </div>
                        )
@@ -128,7 +136,8 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
                       <CurrentTimeIndicator /> 
                     )}
                  </div>
-               ))}
+                 )
+               })}
             </div>
          </div>
       </div>
