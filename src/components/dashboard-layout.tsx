@@ -1,14 +1,14 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
+  Banknote,
   Calendar,
   LayoutDashboard,
+  LogOut,
   Menu,
   Settings,
   ShieldCheck,
   Users,
-  Banknote,
-  LogOut,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

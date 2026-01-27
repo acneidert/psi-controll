@@ -4,9 +4,9 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { Loader2, Printer } from 'lucide-react'
 import {
-  getPendingConsultationsFn,
   createInvoiceFn,
   getInvoicesFn,
+  getPendingConsultationsFn,
 } from '@/server/functions/billing'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,11 +32,11 @@ export function BillingTab({ patientId }: { patientId: number }) {
   const getInvoices = useServerFn(getInvoicesFn)
   const createInvoice = useServerFn(createInvoiceFn)
 
-  const [pending, setPending] = React.useState<any[]>([])
-  const [invoices, setInvoices] = React.useState<any[]>([])
+  const [pending, setPending] = React.useState<Array<any>>([])
+  const [invoices, setInvoices] = React.useState<Array<any>>([])
   const [loading, setLoading] = React.useState(true)
 
-  const [selectedIds, setSelectedIds] = React.useState<number[]>([])
+  const [selectedIds, setSelectedIds] = React.useState<Array<number>>([])
   const [dueDate, setDueDate] = React.useState(
     new Date().toISOString().split('T')[0],
   )

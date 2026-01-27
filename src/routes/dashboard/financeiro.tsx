@@ -1,34 +1,34 @@
 import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import {
-  getAllPendingConsultationsFn,
-  createBatchInvoicesFn,
-  getAllOpenInvoicesFn,
-  payInvoiceFn,
-  getPaidInvoicesFn,
-} from '@/server/functions/billing'
 import { format, parseISO } from 'date-fns'
 import { toast } from 'sonner'
 import {
-  Loader2,
   Banknote,
   Calendar,
-  Printer,
-  CreditCard,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  CheckCircle,
+  CreditCard,
+  Loader2,
+  Printer,
 } from 'lucide-react'
+import {
+  createBatchInvoicesFn,
+  getAllOpenInvoicesFn,
+  getAllPendingConsultationsFn,
+  getPaidInvoicesFn,
+  payInvoiceFn,
+} from '@/server/functions/billing'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -54,7 +54,7 @@ function FinanceiroPage() {
   const getPaidInvoices = useServerFn(getPaidInvoicesFn)
 
   // Pending State
-  const [items, setItems] = React.useState<any[]>([])
+  const [items, setItems] = React.useState<Array<any>>([])
   const [loadingPending, setLoadingPending] = React.useState(true)
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set())
   const [searchTerm, setSearchTerm] = React.useState('')
@@ -65,11 +65,11 @@ function FinanceiroPage() {
   const [processingBatch, setProcessingBatch] = React.useState(false)
 
   // Open Invoices State
-  const [openInvoices, setOpenInvoices] = React.useState<any[]>([])
+  const [openInvoices, setOpenInvoices] = React.useState<Array<any>>([])
   const [loadingOpen, setLoadingOpen] = React.useState(true)
 
   // Paid Invoices State
-  const [paidInvoices, setPaidInvoices] = React.useState<any[]>([])
+  const [paidInvoices, setPaidInvoices] = React.useState<Array<any>>([])
   const [loadingPaid, setLoadingPaid] = React.useState(true)
   const [paidPage, setPaidPage] = React.useState(1)
   const [paidTotalPages, setPaidTotalPages] = React.useState(1)
@@ -144,7 +144,7 @@ function FinanceiroPage() {
 
     const groups: Record<
       number,
-      { name: string; items: any[]; total: number }
+      { name: string; items: Array<any>; total: number }
     > = {}
 
     filtered.forEach((item) => {
@@ -174,7 +174,7 @@ function FinanceiroPage() {
     setSelectedIds(newSet)
   }
 
-  const handleTogglePatient = (patientId: number, patientItems: any[]) => {
+  const handleTogglePatient = (patientId: number, patientItems: Array<any>) => {
     const newSet = new Set(selectedIds)
     const allSelected = patientItems.every((i) => newSet.has(i.id))
 
@@ -189,9 +189,9 @@ function FinanceiroPage() {
   const handleBatchInvoice = async () => {
     setProcessingBatch(true)
     try {
-      const invoicesToCreate: any[] = []
+      const invoicesToCreate: Array<any> = []
       const selectedItemsList = items.filter((i) => selectedIds.has(i.id))
-      const byPatient: Record<number, number[]> = {}
+      const byPatient: Record<number, Array<number>> = {}
 
       selectedItemsList.forEach((i) => {
         if (!byPatient[i.patientId]) byPatient[i.patientId] = []

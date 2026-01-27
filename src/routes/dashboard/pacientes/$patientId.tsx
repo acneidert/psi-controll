@@ -3,9 +3,12 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { toast } from 'sonner'
 import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react'
-import { format } from 'date-fns'
+import { endOfMonth, format, startOfMonth } from 'date-fns'
+import { BillingTab } from './components/-billing-tab'
 import { getPatientByIdFn } from '@/server/functions/patients'
 import { getAnamneseFn, saveAnamneseFn } from '@/server/functions/anamnese'
+import { getEvolucaoMensalFn, saveEvolucaoMensalFn } from '@/server/functions/evolucao-mensal'
+import { listObservacoesByPatientFn, saveObservacaoFn } from '@/server/functions/observacoes'
 import {
   listConsultationsByPatientFn,
   updateConsultationNotesFn,
@@ -15,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { cn } from '@/lib/utils'
-import { BillingTab } from './components/-billing-tab'
 
 export const Route = createFileRoute('/dashboard/pacientes/$patientId')({
   component: PatientDetailsPage,
@@ -102,7 +104,9 @@ function PatientDetailsPage() {
       <Tabs defaultValue="anamnese" className="space-y-4">
         <TabsList>
           <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
-          <TabsTrigger value="evolucao">Evolução</TabsTrigger>
+          <TabsTrigger value="registro-sessoes">Registro de Sessões</TabsTrigger>
+          <TabsTrigger value="evolucao-mensal">Evolução Mensal</TabsTrigger>
+          <TabsTrigger value="observacoes">Observações</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="dados">Dados Cadastrais</TabsTrigger>
         </TabsList>
@@ -157,8 +161,16 @@ function PatientDetailsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="evolucao">
-            <EvolucaoList patientId={patientId} />
+        <TabsContent value="registro-sessoes">
+            <RegistroSessoesList patientId={patientId} />
+          </TabsContent>
+
+          <TabsContent value="evolucao-mensal">
+            <EvolucaoMensal patientId={patientId} />
+          </TabsContent>
+
+          <TabsContent value="observacoes">
+            <ObservacoesList patientId={patientId} />
           </TabsContent>
 
           <TabsContent value="financeiro">
@@ -201,7 +213,257 @@ function PatientDetailsPage() {
   )
 }
 
-function EvolucaoList({ patientId }: { patientId: number }) {
+function ObservacoesList({ patientId }: { patientId: number }) {
+  const listObservacoes = useServerFn(listObservacoesByPatientFn)
+  const saveObservacao = useServerFn(saveObservacaoFn)
+  const listConsultations = useServerFn(listConsultationsByPatientFn)
+  const [observacoes, setObservacoes] = React.useState<Array<any>>([])
+  const [novaObservacao, setNovaObservacao] = React.useState('')
+  const [vincularSessao, setVincularSessao] = React.useState(false)
+  const [sessaoId, setSessaoId] = React.useState<number | null>(null)
+  const [consultas, setConsultas] = React.useState<Array<any>>([])
+  const [loading, setLoading] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [observacoesData, consultasData] = await Promise.all([
+          listObservacoesByPatientFn({ data: { pacienteId: patientId } }),
+          listConsultations({ data: { patientId } }),
+        ])
+        setObservacoes(observacoesData)
+        setConsultas(consultasData)
+      } catch (error) {
+        console.error(error)
+        toast.error('Erro ao carregar dados')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [patientId, listObservacoesByPatientFn, listConsultations])
+
+  const handleSaveObservacao = async () => {
+    if (!novaObservacao.trim()) {
+      toast.error('Por favor, insira uma observação')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const novaObs = await saveObservacao({
+        data: {
+          pacienteId: patientId,
+          sessaoId: vincularSessao ? sessaoId : undefined,
+          texto: novaObservacao,
+        },
+      })
+      
+      setObservacoes([novaObs, ...observacoes])
+      toast.success('Observação salva com sucesso!')
+      setNovaObservacao('')
+      setVincularSessao(false)
+      setSessaoId(null)
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao salvar observação')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Nova Observação</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <RichTextEditor
+              value={novaObservacao}
+              onChange={setNovaObservacao}
+              placeholder="Digite sua observação..."
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="vincularSessao"
+                checked={vincularSessao}
+                onChange={(e) => setVincularSessao(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="vincularSessao" className="text-sm">
+                Vincular a uma sessão
+              </label>
+            </div>
+            {vincularSessao && (
+              <select
+                value={sessaoId || ''}
+                onChange={(e) => setSessaoId(Number(e.target.value) || null)}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Selecione uma sessão</option>
+                {consultas.map((consulta) => (
+                  <option key={consulta.id} value={consulta.id}>
+                    {format(new Date(consulta.dataPrevista), 'dd/MM/yyyy HH:mm')}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={handleSaveObservacao} disabled={saving}>
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? 'Salvando...' : 'Salvar Observação'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Observações Anteriores</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {observacoes.length === 0 ? (
+            <p className="text-gray-500">Nenhuma observação registrada.</p>
+          ) : (
+            <div className="space-y-4">
+              {observacoes.map((obs) => (
+                <div key={obs.id} className="border-l-4 border-blue-500 pl-4">
+                  <div className="text-sm text-gray-600 mb-2">
+                    {format(new Date(obs.dataCriacao), 'dd/MM/yyyy HH:mm')}
+                    {obs.sessaoId && (
+                      <span className="ml-2 text-blue-600">
+                        • Vinculado à sessão
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: obs.texto }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function EvolucaoMensal({ patientId }: { patientId: number }) {
+  const getEvolucaoMensal = useServerFn(getEvolucaoMensalFn)
+  const saveEvolucaoMensal = useServerFn(saveEvolucaoMensalFn)
+  const [currentMonth, setCurrentMonth] = React.useState(new Date())
+  const [evolucaoText, setEvolucaoText] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    const loadEvolucao = async () => {
+      setLoading(true)
+      try {
+        const evolucao = await getEvolucaoMensal({
+          data: {
+            pacienteId: patientId,
+            mes: currentMonth.getMonth() + 1,
+            ano: currentMonth.getFullYear(),
+          },
+        })
+        setEvolucaoText(evolucao?.texto || '')
+      } catch (error) {
+        console.error(error)
+        toast.error('Erro ao carregar evolução mensal')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadEvolucao()
+  }, [currentMonth, patientId, getEvolucaoMensal])
+
+  const handleSaveEvolucao = async () => {
+    setSaving(true)
+    try {
+      await saveEvolucaoMensal({
+        data: {
+          pacienteId: patientId,
+          mes: currentMonth.getMonth() + 1,
+          ano: currentMonth.getFullYear(),
+          texto: evolucaoText,
+        },
+      })
+      toast.success('Evolução mensal salva com sucesso!')
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao salvar evolução mensal')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentMonth)
+    if (direction === 'prev') {
+      newDate.setMonth(newDate.getMonth() - 1)
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1)
+    }
+    setCurrentMonth(newDate)
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Evolução Mensal</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleMonthChange('prev')}
+              >
+                ←
+              </Button>
+              <span className="text-sm font-medium min-w-[120px] text-center">
+                {format(currentMonth, 'MMMM yyyy')}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleMonthChange('next')}
+              >
+                →
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <RichTextEditor
+              value={evolucaoText}
+              onChange={setEvolucaoText}
+              placeholder="Descreva a evolução do paciente neste mês..."
+            />
+            <div className="flex justify-end">
+              <Button onClick={handleSaveEvolucao} disabled={saving}>
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? 'Salvando...' : 'Salvar Evolução Mensal'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function RegistroSessoesList({ patientId }: { patientId: number }) {
   const listConsultations = useServerFn(listConsultationsByPatientFn)
   const updateNotes = useServerFn(updateConsultationNotesFn)
   const [consultations, setConsultations] = React.useState<Array<any>>([])
@@ -243,7 +505,7 @@ function EvolucaoList({ patientId }: { patientId: number }) {
           notes: editNotes,
         },
       })
-      toast.success('Evolução salva!')
+      toast.success('Registro de sessão salvo!')
       // Update local list
       setConsultations((prev) =>
         prev.map((c) =>
@@ -252,7 +514,7 @@ function EvolucaoList({ patientId }: { patientId: number }) {
       )
     } catch (error) {
       console.error(error)
-      toast.error('Erro ao salvar evolução')
+      toast.error('Erro ao salvar registro de sessão')
     }
   }
 
@@ -301,18 +563,18 @@ function EvolucaoList({ patientId }: { patientId: number }) {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    Evolução / Observações da Sessão
+                    Registro da Sessão
                   </label>
                   <RichTextEditor
                     value={editNotes}
                     onChange={setEditNotes}
-                    placeholder="Descreva a evolução da sessão..."
+                    placeholder="Descreva o registro da sessão..."
                   />
                 </div>
                 <div className="flex justify-end">
                   <Button onClick={() => handleSave(c.id)}>
                     <Save className="mr-2 h-4 w-4" />
-                    Salvar Evolução
+                    Salvar Registro
                   </Button>
                 </div>
               </div>

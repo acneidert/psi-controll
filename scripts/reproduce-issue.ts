@@ -1,11 +1,11 @@
+import { addDays, endOfWeek, format, startOfWeek } from 'date-fns'
+import { eq } from 'drizzle-orm'
 import { auth } from '../src/lib/auth'
 import { db } from '../src/db'
-import { agendas, consultas, pacientes, faturas, faturaItens, pagamentos } from '../src/db/schema'
+import { agendas, consultas, faturaItens, faturas, pacientes, pagamentos } from '../src/db/schema'
 import { AgendaService } from '../src/server/services/agenda'
 import { CalendarService } from '../src/server/services/calendar'
 import { ConsultationService } from '../src/server/services/consultation'
-import { addDays, format, startOfWeek, endOfWeek } from 'date-fns'
-import { eq } from 'drizzle-orm'
 
 async function main() {
   console.log('--- Reproducing Ghost Event Issue ---')

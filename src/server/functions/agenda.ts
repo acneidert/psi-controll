@@ -18,6 +18,8 @@ const CreateAgendaSchema = z.object({
 const UpdateAgendaSchema = z.object({
   id: z.number(),
   data: CreateAgendaSchema.partial(),
+  mode: z.enum(['overwrite', 'history']).optional(),
+  cutoffDate: z.string().optional(),
 })
 
 export const listAgendasFn = createServerFn({ method: 'GET' }).handler(
@@ -35,7 +37,12 @@ export const createAgendaFn = createServerFn({ method: 'POST' })
 export const updateAgendaFn = createServerFn({ method: 'POST' })
   .inputValidator((data: z.infer<typeof UpdateAgendaSchema>) => data)
   .handler(async ({ data }: { data: z.infer<typeof UpdateAgendaSchema> }) => {
-    return await AgendaService.updateAgenda(data.id, data.data)
+    return await AgendaService.updateAgenda(
+      data.id,
+      data.data,
+      data.mode,
+      data.cutoffDate,
+    )
   })
 
 export const terminateAgendaFn = createServerFn({ method: 'POST' })
@@ -45,7 +52,15 @@ export const terminateAgendaFn = createServerFn({ method: 'POST' })
   })
 
 export const deleteAgendaFn = createServerFn({ method: 'POST' })
-  .inputValidator((data: { id: number }) => data)
-  .handler(async ({ data }: { data: { id: number } }) => {
-    return await AgendaService.deleteAgenda(data.id)
-  })
+  .inputValidator(
+    (data: { id: number; mode?: 'history' | 'everything' }) => data,
+  )
+  .handler(
+    async ({
+      data,
+    }: {
+      data: { id: number; mode?: 'history' | 'everything' }
+    }) => {
+      return await AgendaService.deleteAgenda(data.id, data.mode)
+    },
+  )

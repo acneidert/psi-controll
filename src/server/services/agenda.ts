@@ -69,12 +69,58 @@ export class AgendaService {
     return newAgenda
   }
 
-  static async updateAgenda(id: number, data: UpdateAgendaInput) {
+  static async updateAgenda(
+    id: number,
+    data: UpdateAgendaInput,
+    mode: 'overwrite' | 'history' = 'overwrite',
+    cutoffDate?: string,
+  ) {
     // 1. Get existing
     const existing = await this.getAgendaById(id)
     if (!existing) throw new Error('Agenda não encontrada.')
 
-    // 2. If changing critical fields, validate conflict
+    if (mode === 'history') {
+      // KEEP HISTORY: Terminate old and create new
+      // Determine cutoff/start date (default to today if not provided)
+      const newStartDateStr =
+        cutoffDate ?? new Date().toISOString().split('T')[0]
+      const newStartDate = parseISO(newStartDateStr)
+
+      // Calculate end date for old agenda (day before new start)
+      const endDate = new Date(newStartDate)
+      endDate.setDate(endDate.getDate() - 1)
+      const endDateStr = endDate.toISOString().split('T')[0]
+
+      await this.terminateAgenda(id, endDateStr)
+
+      // Validate dataFim: if it is before newStartDate, clear it (make it open-ended)
+      // because we are starting a NEW agenda period.
+      let newDataFim = data.dataFim ?? existing.dataFim
+      if (newDataFim && newDataFim < newStartDateStr) {
+        newDataFim = null // or undefined
+      }
+
+      // Merge existing data with new data for the new agenda
+      const createData: CreateAgendaInput = {
+        pacienteId: data.pacienteId ?? existing.pacienteId,
+        hora: data.hora ?? existing.hora,
+        frequencia: data.frequencia ?? existing.frequencia ?? 'semanal',
+        dataInicio: newStartDateStr, // FORCE new start date
+        dataFim: newDataFim,
+        diaSemana: data.diaSemana, // Let createAgenda derive it from dataInicio if undefined
+        valorFixo:
+          data.valorFixo === undefined ? existing.valorFixo : data.valorFixo,
+        categoriaPrecoId:
+          data.categoriaPrecoId === undefined
+            ? existing.categoriaPrecoId
+            : data.categoriaPrecoId,
+        observacoes: data.observacoes ?? existing.observacoes ?? undefined,
+      }
+
+      return await this.createAgenda(createData)
+    }
+
+    // 2. OVERWRITE: If changing critical fields, validate conflict
     if (
       data.diaSemana !== undefined ||
       data.hora !== undefined ||
@@ -84,9 +130,6 @@ export class AgendaService {
     ) {
       let diaSemana = data.diaSemana ?? existing.diaSemana
 
-      // If date changed but day not provided, re-derive?
-      // Ideally UI sends both. If only date sent, we might have mismatch if day not sent.
-      // But assuming consistent UI.
       if (data.dataInicio && data.diaSemana === undefined) {
         diaSemana = getDay(parseISO(data.dataInicio))
       }
@@ -101,11 +144,8 @@ export class AgendaService {
         data.dataFim = dataFim
       }
 
-      // Need to exclude self from conflict check
-      // Note: existing.diaSemana might be null in DB (though we try to enforce it now)
       await this.checkConflict(diaSemana!, hora, dataInicio, dataFim, id)
 
-      // Ensure diaSemana is updated in data if we re-derived it
       data.diaSemana = diaSemana ?? undefined
     }
 
@@ -127,14 +167,21 @@ export class AgendaService {
     return updated
   }
 
-  static async deleteAgenda(id: number) {
-    // Soft delete
-    const [deleted] = await db
-      .update(agendas)
-      .set({ ativa: false })
-      .where(eq(agendas.id, id))
-      .returning()
-    return deleted
+  static async deleteAgenda(id: number, mode: 'history' | 'everything' = 'history') {
+    if (mode === 'everything') {
+      // In this context, "everything" means soft delete (ativa = false)
+      // as per user requirement: "se for excluir, faça um soft delete"
+      const [deleted] = await db
+        .update(agendas)
+        .set({ ativa: false })
+        .where(eq(agendas.id, id))
+        .returning()
+      return deleted
+    }
+
+    // "history" means "terminate but keep visible in history"
+    const today = new Date().toISOString().split('T')[0]
+    return await this.terminateAgenda(id, today)
   }
 
   private static async checkConflict(

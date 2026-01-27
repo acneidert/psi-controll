@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { DollarSign, Plus, Save } from 'lucide-react'
 import { toast } from 'sonner' // Assuming sonner is available or we can use a simple alert fallback
+import { format, parseISO } from 'date-fns'
 import {
   addPriceFn,
   createCategoryFn,
@@ -37,7 +38,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { format, parseISO } from 'date-fns'
 
 export const Route = createFileRoute('/dashboard/settings')({
   component: SettingsPage,

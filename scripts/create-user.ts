@@ -1,5 +1,5 @@
-import { auth } from '../src/lib/auth'
 import { createInterface } from 'node:readline'
+import { auth } from '../src/lib/auth'
 
 const rl = createInterface({
   input: process.stdin,

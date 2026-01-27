@@ -1,14 +1,14 @@
+import { and, desc, eq, inArray, notExists, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import {
-  faturas,
-  faturaItens,
-  consultas,
   agendas,
   configuracoes,
+  consultas,
+  faturaItens,
+  faturas,
   pacientes,
   pagamentos,
 } from '@/db/schema'
-import { eq, and, inArray, notExists, desc, sql } from 'drizzle-orm'
 
 export class BillingService {
   static async getInvoice(invoiceId: number) {
@@ -103,7 +103,7 @@ export class BillingService {
     observations,
   }: {
     patientId: number
-    consultationIds: number[]
+    consultationIds: Array<number>
     dueDate: Date
     discount?: number
     observations?: string

@@ -1,14 +1,14 @@
 import * as React from 'react'
-import { cn } from '@/lib/utils'
 import { format, isSameDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarEventCard } from './calendar-event-card'
 import { Plus } from 'lucide-react'
+import { CalendarEventCard } from './calendar-event-card'
+import { cn } from '@/lib/utils'
 
 interface CalendarGridProps {
-  days: Date[]
-  timeSlots: { hour: number; minute: number; label: string }[]
-  events: any[]
+  days: Array<Date>
+  timeSlots: Array<{ hour: number; minute: number; label: string }>
+  events: Array<any>
   onEventClick: (event: any) => void
   onSlotClick: (date: Date, hour: number, minute: number) => void
 }

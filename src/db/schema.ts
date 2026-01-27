@@ -115,10 +115,8 @@ export const agendas = pgTable(
     observacoes: text('observacoes'),
   },
   (table) => ({
-    uniqueActiveSchedule: uniqueIndex('agendas_unique_active_schedule')
-      .on(table.pacienteId, table.diaSemana, table.hora)
-      // Only enforce uniqueness for active agendas to allow history
-      .where(sql`ativa = true`),
+    // uniqueActiveSchedule constraint removed to allow history (multiple active rows with different date ranges)
+    // Overlaps are handled by application logic in AgendaService.checkConflict
   }),
 )
 
@@ -246,6 +244,32 @@ export const verification = pgTable("verification", {
 	updatedAt: timestamp("updated_at")
 });
 
+// 9. Evolução Mensal
+export const evolucaoMensal = pgTable('evolucao_mensal', {
+  id: serial('id').primaryKey(),
+  pacienteId: integer('paciente_id')
+    .notNull()
+    .references(() => pacientes.id, { onDelete: 'cascade' }),
+  mes: integer('mes').notNull(), // 1-12
+  ano: integer('ano').notNull(),
+  texto: text('texto').notNull(),
+  dataCriacao: timestamp('data_criacao').defaultNow(),
+  dataAtualizacao: timestamp('data_atualizacao').defaultNow(),
+})
+
+// 10. Observações da Psicóloga
+export const observacoes = pgTable('observacoes', {
+  id: serial('id').primaryKey(),
+  pacienteId: integer('paciente_id')
+    .notNull()
+    .references(() => pacientes.id, { onDelete: 'cascade' }),
+  sessaoId: integer('sessao_id')
+    .references(() => consultas.id, { onDelete: 'set null' }),
+  texto: text('texto').notNull(),
+  dataCriacao: timestamp('data_criacao').defaultNow(),
+  dataAtualizacao: timestamp('data_atualizacao').defaultNow(),
+})
+
 // 8. Pagamentos
 export const pagamentos = pgTable('pagamentos', {
   id: serial('id').primaryKey(),
@@ -265,6 +289,8 @@ export const pacientesRelations = relations(pacientes, ({ many }) => ({
   anamnese: many(anamnese),
   evolucoes: many(evolucaoAtendimento),
   responsaveis: many(responsaveis),
+  evolucaoMensal: many(evolucaoMensal),
+  observacoes: many(observacoes),
 }))
 
 export const responsaveisRelations = relations(responsaveis, ({ one }) => ({
@@ -332,5 +358,23 @@ export const pagamentosRelations = relations(pagamentos, ({ one }) => ({
   fatura: one(faturas, {
     fields: [pagamentos.faturaId],
     references: [faturas.id],
+  }),
+}))
+
+export const evolucaoMensalRelations = relations(evolucaoMensal, ({ one }) => ({
+  paciente: one(pacientes, {
+    fields: [evolucaoMensal.pacienteId],
+    references: [pacientes.id],
+  }),
+}))
+
+export const observacoesRelations = relations(observacoes, ({ one }) => ({
+  paciente: one(pacientes, {
+    fields: [observacoes.pacienteId],
+    references: [pacientes.id],
+  }),
+  sessao: one(consultas, {
+    fields: [observacoes.sessaoId],
+    references: [consultas.id],
   }),
 }))

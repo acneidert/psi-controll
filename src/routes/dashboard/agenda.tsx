@@ -2,12 +2,12 @@ import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import {
+  AlertCircle,
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
   Settings,
-  AlertCircle,
 } from 'lucide-react'
 import { addDays, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -15,8 +15,10 @@ import { toast } from 'sonner'
 import { getCalendarEventsFn } from '@/server/functions/calendar'
 import {
   createAgendaFn,
+  deleteAgendaFn,
   listAgendasFn,
   terminateAgendaFn,
+  updateAgendaFn,
 } from '@/server/functions/agenda'
 import {
   cancelConsultationFn,
@@ -56,6 +58,8 @@ function AgendaPage() {
   const createAgenda = useServerFn(createAgendaFn)
   const listAgendas = useServerFn(listAgendasFn)
   const terminateAgenda = useServerFn(terminateAgendaFn)
+  const updateAgenda = useServerFn(updateAgendaFn)
+  const deleteAgenda = useServerFn(deleteAgendaFn)
 
   const confirmConsultation = useServerFn(confirmConsultationFn)
   const rescheduleConsultation = useServerFn(rescheduleConsultationFn)
@@ -70,6 +74,10 @@ function AgendaPage() {
 
   // UI State
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
+  const [isEditMode, setIsEditMode] = React.useState(false)
+  const [selectedAgendaId, setSelectedAgendaId] = React.useState<number | null>(
+    null,
+  )
   const [isManageOpen, setIsManageOpen] = React.useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null)
@@ -90,17 +98,24 @@ function AgendaPage() {
     variant: 'default',
   })
 
-  const [terminateDialog, setTerminateDialog] = React.useState<{
+  const [choiceDialog, setChoiceDialog] = React.useState<{
     isOpen: boolean
-    agendaId: number | null
-    date: string
+    title: string
+    description: string
+    options: Array<{
+      label: string
+      value: string
+      variant?: 'default' | 'destructive' | 'outline'
+    }>
+    onSelect: (value: string) => void
   }>({
     isOpen: false,
-    agendaId: null,
-    date: format(new Date(), 'yyyy-MM-dd'),
+    title: '',
+    description: '',
+    options: [],
+    onSelect: () => {},
   })
 
-  // Form State
   const [formData, setFormData] = React.useState({
     pacienteId: '',
     frequencia: 'semanal',
@@ -110,6 +125,11 @@ function AgendaPage() {
     dataFim: '',
     categoriaPrecoId: '',
   })
+
+  // Edit Confirmation State
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = React.useState(false)
+  const [editModeSelection, setEditModeSelection] = React.useState<'history' | 'overwrite'>('history')
+  const [editCutoffDate, setEditCutoffDate] = React.useState(format(new Date(), 'yyyy-MM-dd'))
 
   const loadData = React.useCallback(() => {
     getEvents({
@@ -144,6 +164,13 @@ function AgendaPage() {
         return
       }
 
+      if (isEditMode && selectedAgendaId) {
+        setEditModeSelection('history')
+        setEditCutoffDate(formData.dataInicio || format(new Date(), 'yyyy-MM-dd'))
+        setIsEditConfirmOpen(true)
+        return
+      }
+
       await createAgenda({
         data: {
           pacienteId: Number(formData.pacienteId),
@@ -165,30 +192,95 @@ function AgendaPage() {
       loadData()
       toast.success('Agenda criada com sucesso!')
     } catch (error: any) {
-      toast.error('Erro ao criar agenda: ' + error.message)
+      toast.error('Erro ao salvar agenda: ' + error.message)
     }
   }
 
-  const handleTerminate = (id: number) => {
-    setTerminateDialog({
+  const handleConfirmEdit = async () => {
+    await executeEdit(editModeSelection, editCutoffDate)
+    setIsEditConfirmOpen(false)
+  }
+
+  const executeEdit = async (
+    mode: 'history' | 'overwrite',
+    cutoffDate?: string,
+  ) => {
+    if (!selectedAgendaId) return
+    try {
+      await updateAgenda({
+        data: {
+          id: selectedAgendaId,
+          mode,
+          cutoffDate,
+          data: {
+            pacienteId: Number(formData.pacienteId),
+            hora: formData.hora,
+            dataInicio: formData.dataInicio,
+            frequencia: formData.frequencia as any,
+            diaSemana: formData.diaSemana
+              ? Number(formData.diaSemana)
+              : undefined,
+            dataFim: formData.dataFim || undefined,
+            categoriaPrecoId: formData.categoriaPrecoId
+              ? Number(formData.categoriaPrecoId)
+              : undefined,
+          },
+        },
+      })
+
+      setIsCreateOpen(false)
+      loadData()
+      listAgendas().then(setAgendas)
+      toast.success('Agenda atualizada com sucesso!')
+    } catch (error: any) {
+      toast.error('Erro ao atualizar: ' + error.message)
+    }
+  }
+
+  const handleEdit = (agenda: any) => {
+    setFormData({
+      pacienteId: agenda.pacienteId.toString(),
+      frequencia: agenda.frequencia,
+      diaSemana: agenda.diaSemana?.toString() || '',
+      hora: agenda.hora.slice(0, 5),
+      dataInicio: agenda.dataInicio,
+      dataFim: agenda.dataFim || '',
+      categoriaPrecoId: agenda.categoriaPrecoId?.toString() || '',
+    })
+    setSelectedAgendaId(agenda.id)
+    setIsEditMode(true)
+    setIsCreateOpen(true)
+  }
+
+  const handleDelete = (id: number) => {
+    setChoiceDialog({
       isOpen: true,
-      agendaId: id,
-      date: format(new Date(), 'yyyy-MM-dd'),
+      title: 'Excluir Agenda',
+      description:
+        'Deseja manter o histórico desta agenda (apenas encerrar) ou excluir completamente do sistema?',
+      options: [
+        { label: 'Manter Histórico', value: 'history' },
+        {
+          label: 'Excluir Tudo',
+          value: 'everything',
+          variant: 'destructive',
+        },
+      ],
+      onSelect: (mode) => executeDelete(id, mode as 'history' | 'everything'),
     })
   }
 
-  const executeTerminate = async () => {
-    if (!terminateDialog.agendaId || !terminateDialog.date) return
+  const executeDelete = async (id: number, mode: 'history' | 'everything') => {
     try {
-      await terminateAgenda({
-        data: { id: terminateDialog.agendaId, endDate: terminateDialog.date },
-      })
+      await deleteAgenda({ data: { id, mode } })
       listAgendas().then(setAgendas)
       loadData()
-      setTerminateDialog((prev) => ({ ...prev, isOpen: false }))
-      toast.success('Agenda encerrada com sucesso!')
+      setChoiceDialog((prev) => ({ ...prev, isOpen: false }))
+      toast.success(
+        mode === 'history' ? 'Agenda encerrada!' : 'Agenda excluída!',
+      )
     } catch (error: any) {
-      toast.error('Erro ao encerrar: ' + error.message)
+      toast.error('Erro ao excluir: ' + error.message)
     }
   }
 
@@ -331,7 +423,20 @@ function AgendaPage() {
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Gerenciar</span>
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2 shadow-sm">
+          <Button onClick={() => {
+            setFormData({
+              pacienteId: '',
+              frequencia: 'semanal',
+              diaSemana: '',
+              hora: '',
+              dataInicio: format(new Date(), 'yyyy-MM-dd'),
+              dataFim: '',
+              categoriaPrecoId: '',
+            })
+            setIsEditMode(false)
+            setSelectedAgendaId(null)
+            setIsCreateOpen(true)
+          }} className="gap-2 shadow-sm">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova Agenda</span>
           </Button>
@@ -379,10 +484,11 @@ function AgendaPage() {
 
       {/* Dialog Nova Agenda */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        {/* ... existing content ... */}
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Nova Agenda / Recorrência</DialogTitle>
+            <DialogTitle>
+              {isEditMode ? 'Editar Agenda' : 'Nova Agenda / Recorrência'}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -473,6 +579,45 @@ function AgendaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Choice Dialog */}
+      <Dialog
+        open={choiceDialog.isOpen}
+        onOpenChange={(open) =>
+          setChoiceDialog((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{choiceDialog.title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              {choiceDialog.description}
+            </p>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="sm:mr-auto"
+              onClick={() =>
+                setChoiceDialog((prev) => ({ ...prev, isOpen: false }))
+              }
+            >
+              Cancelar
+            </Button>
+            {choiceDialog.options.map((option) => (
+              <Button
+                key={option.value}
+                variant={option.variant || 'default'}
+                onClick={() => choiceDialog.onSelect(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation Dialog */}
       <Dialog
         open={confirmDialog.isOpen}
@@ -506,50 +651,82 @@ function AgendaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Termination Dialog */}
-      <Dialog
-        open={terminateDialog.isOpen}
-        onOpenChange={(open) =>
-          setTerminateDialog((prev) => ({ ...prev, isOpen: open }))
-        }
-      >
+      {/* Edit Confirmation Dialog */}
+      <Dialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Encerrar Recorrência</DialogTitle>
+            <DialogTitle>Confirmar Alteração</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="flex items-center gap-2 p-2 rounded-md bg-yellow-50 text-yellow-800 text-sm">
-              <AlertCircle className="h-4 w-4" />
-              <p>
-                Isso encerrará os agendamentos futuros a partir da data
-                selecionada.
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label>Data de Encerramento</Label>
-              <Input
-                type="date"
-                value={terminateDialog.date}
-                onChange={(e) =>
-                  setTerminateDialog((prev) => ({
-                    ...prev,
-                    date: e.target.value,
-                  }))
-                }
-              />
+            <p className="text-sm text-muted-foreground">
+              Como deseja aplicar as alterações nesta agenda recorrente?
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/50" onClick={() => setEditModeSelection('history')}>
+                <input
+                  type="radio"
+                  id="mode-history"
+                  name="edit-mode"
+                  value="history"
+                  checked={editModeSelection === 'history'}
+                  onChange={(e) => setEditModeSelection(e.target.value as any)}
+                  className="h-4 w-4"
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="mode-history" className="cursor-pointer font-medium">
+                    Manter Histórico
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Encerra a agenda atual e cria uma nova a partir da data de corte.
+                  </p>
+                </div>
+              </div>
+
+              {editModeSelection === 'history' && (
+                <div className="ml-6 pl-4 border-l-2 border-muted animate-in fade-in slide-in-from-top-2">
+                   <Label className="mb-2 block">Data de Corte (Início da Nova Agenda)</Label>
+                   <Input
+                      type="date"
+                      value={editCutoffDate}
+                      onChange={(e) => setEditCutoffDate(e.target.value)}
+                   />
+                   <p className="text-xs text-muted-foreground mt-1">
+                     O agendamento antigo será encerrado no dia anterior a esta data.
+                   </p>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2 border p-3 rounded-md cursor-pointer hover:bg-muted/50" onClick={() => setEditModeSelection('overwrite')}>
+                <input
+                  type="radio"
+                  id="mode-overwrite"
+                  name="edit-mode"
+                  value="overwrite"
+                  checked={editModeSelection === 'overwrite'}
+                  onChange={(e) => setEditModeSelection(e.target.value as any)}
+                  className="h-4 w-4"
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="mode-overwrite" className="cursor-pointer font-medium">
+                    Sobrescrever Tudo
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Atualiza todos os registros, passados e futuros (Cuidado!).
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() =>
-                setTerminateDialog((prev) => ({ ...prev, isOpen: false }))
-              }
+              onClick={() => setIsEditConfirmOpen(false)}
             >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={executeTerminate}>
-              Encerrar
+            <Button onClick={handleConfirmEdit}>
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -597,16 +774,25 @@ function AgendaPage() {
                         : '-'}
                     </td>
                     <td className="p-2">
-                      {!agenda.dataFim && (
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => handleTerminate(agenda.id)}
+                          onClick={() => handleEdit(agenda)}
                         >
-                          Encerrar
+                          Editar
                         </Button>
-                      )}
+                        {!agenda.dataFim && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => handleDelete(agenda.id)}
+                          >
+                            Excluir
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

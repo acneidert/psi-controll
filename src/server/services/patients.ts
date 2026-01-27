@@ -60,14 +60,14 @@ export class PatientService {
     estadoCivil?: string
     genero?: string
     observacoes?: string
-    responsaveis?: {
+    responsaveis?: Array<{
       nome: string
       cpf?: string
       telefone?: string
       email?: string
       endereco?: string
       financeiro?: boolean
-    }[]
+    }>
   }) {
     try {
       if (data.cpf) {
@@ -118,14 +118,14 @@ export class PatientService {
       estadoCivil?: string
       genero?: string
       observacoes?: string
-      responsaveis?: {
+      responsaveis?: Array<{
         nome: string
         cpf?: string
         telefone?: string
         email?: string
         endereco?: string
         financeiro?: boolean
-      }[]
+      }>
     },
   ) {
     try {

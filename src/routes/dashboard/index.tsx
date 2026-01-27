@@ -1,6 +1,10 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Activity, Calendar, DollarSign, Users, ArrowUpRight, CreditCard, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { Activity, ArrowUpRight, Calendar, Clock, CreditCard, DollarSign, Users } from 'lucide-react'
+import { useServerFn } from '@tanstack/react-start'
+import { useEffect, useState } from 'react'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { getDashboardStatsFn, getOverdueInvoicesFn, getRecentConsultationsFn } from '@/server/functions/dashboard'
 import {
   Card,
   CardContent,
@@ -8,11 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { useServerFn } from '@tanstack/react-start'
-import { getDashboardStatsFn, getRecentConsultationsFn, getOverdueInvoicesFn } from '@/server/functions/dashboard'
-import { useEffect, useState } from 'react'
-import { format, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/dashboard/')({
   component: DashboardIndex,
@@ -31,8 +31,8 @@ function DashboardIndex() {
     openInvoices: 0,
     unbilledConsultations: 0,
   })
-  const [recentConsultations, setRecentConsultations] = useState<any[]>([])
-  const [overdueInvoices, setOverdueInvoices] = useState<any[]>([])
+  const [recentConsultations, setRecentConsultations] = useState<Array<any>>([])
+  const [overdueInvoices, setOverdueInvoices] = useState<Array<any>>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

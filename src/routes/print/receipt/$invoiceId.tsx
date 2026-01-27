@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { getInvoiceFn } from '@/server/functions/billing'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Button } from '@/components/ui/button'
 import { Printer } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { getInvoiceFn } from '@/server/functions/billing'
 
 export const Route = createFileRoute('/print/receipt/$invoiceId')({
   component: ReceiptPrint,

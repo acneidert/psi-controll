@@ -1,15 +1,15 @@
-import { db } from '@/db'
+import { and, count, desc, eq, gte, inArray, isNull, lt, lte, sql, sum } from 'drizzle-orm'
+import { addMonths, endOfDay, endOfMonth, startOfDay, startOfMonth, subMonths } from 'date-fns'
+import { CalendarService } from './calendar'
 import {
+  agendas,
   consultas,
+  faturaItens,
+  faturas,
   pacientes,
   pagamentos,
-  agendas,
-  faturas,
-  faturaItens,
 } from '@/db/schema'
-import { eq, and, sql, gte, lte, desc, count, sum, lt, inArray, isNull } from 'drizzle-orm'
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
-import { CalendarService } from './calendar'
+import { db } from '@/db'
 
 export class DashboardService {
   static async getStats() {
