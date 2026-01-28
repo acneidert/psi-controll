@@ -1,5 +1,5 @@
 import { and, desc, eq, ne } from 'drizzle-orm'
-import { getDay, parseISO } from 'date-fns'
+import { format, getDay, parseISO, subDays } from 'date-fns'
 import { db } from '@/db'
 import { agendas } from '@/db/schema'
 
@@ -83,13 +83,12 @@ export class AgendaService {
       // KEEP HISTORY: Terminate old and create new
       // Determine cutoff/start date (default to today if not provided)
       const newStartDateStr =
-        cutoffDate ?? new Date().toISOString().split('T')[0]
+        cutoffDate ?? format(new Date(), 'yyyy-MM-dd')
       const newStartDate = parseISO(newStartDateStr)
 
       // Calculate end date for old agenda (day before new start)
-      const endDate = new Date(newStartDate)
-      endDate.setDate(endDate.getDate() - 1)
-      const endDateStr = endDate.toISOString().split('T')[0]
+      const endDate = subDays(newStartDate, 1)
+      const endDateStr = format(endDate, 'yyyy-MM-dd')
 
       await this.terminateAgenda(id, endDateStr)
 
@@ -169,8 +168,6 @@ export class AgendaService {
 
   static async deleteAgenda(id: number, mode: 'history' | 'everything' = 'history') {
     if (mode === 'everything') {
-      // In this context, "everything" means soft delete (ativa = false)
-      // as per user requirement: "se for excluir, faça um soft delete"
       const [deleted] = await db
         .update(agendas)
         .set({ ativa: false })
@@ -179,8 +176,7 @@ export class AgendaService {
       return deleted
     }
 
-    // "history" means "terminate but keep visible in history"
-    const today = new Date().toISOString().split('T')[0]
+    const today = format(new Date(), 'yyyy-MM-dd')
     return await this.terminateAgenda(id, today)
   }
 
@@ -191,14 +187,6 @@ export class AgendaService {
     dataFim?: string | null,
     excludeId?: number,
   ) {
-    // Conflict Definition:
-    // Same Day of Week AND Same Time AND Time Range Overlap
-    // This is a simplification. It assumes 'Recurrence' blocks that slot indefinitely.
-    // It does NOT handle "Week 1 vs Week 2" (Quinzenal) collisions intelligently yet.
-    // It treats Quinzenal/Mensal as blocking the slot every week for safety (or we can refine).
-    // For V2.0 MVP: Blocking the slot (Day+Time) regardless of frequency is safer to prevent accidents.
-    // "Better safe than sorry" - If you have a monthly slot, you probably don't want a weekly slot taking it over the other 3 weeks automatically without warning.
-
     const conditions = [
       eq(agendas.ativa, true),
       eq(agendas.diaSemana, diaSemana),
@@ -222,13 +210,9 @@ export class AgendaService {
       const newEnd = dataFim
 
       // Check overlap
-      // 1. Existing ends before New starts?
       if (existingEnd && existingEnd < newStart) continue // No overlap
-
-      // 2. New ends before Existing starts?
       if (newEnd && newEnd < existingStart) continue // No overlap
 
-      // If we are here, there is an overlap in time range + same day/time
       throw new Error(
         `Conflito de horário detectado com agenda existente (Paciente: ${existing.pacienteId}).`,
       )

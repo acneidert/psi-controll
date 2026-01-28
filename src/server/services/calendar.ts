@@ -1,5 +1,15 @@
 import { and, eq, gte, lte, or } from 'drizzle-orm'
-import { addDays, format, getDay, isAfter, isBefore, isSameDay } from 'date-fns'
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  getDay,
+  isAfter,
+  isBefore,
+  isSameDay,
+  parseISO,
+  startOfDay,
+} from 'date-fns'
 import { db } from '@/db'
 import { agendas, consultas } from '@/db/schema'
 
@@ -26,11 +36,14 @@ export class CalendarService {
   ): Promise<Array<CalendarEvent>> {
     const events: Array<CalendarEvent> = []
 
+    // Normalizar datas de busca para início do dia
+    const startOfPeriod = startOfDay(startDate)
+    const endOfPeriod = startOfDay(endDate)
+
     // 1. Buscar todas as agendas ativas que interceptam o período ou são infinitas
     const activeAgendas = await db.query.agendas.findMany({
       where: and(
         eq(agendas.ativa, true),
-        // Idealmente filtrar por datas aqui também para otimizar, mas a lógica de recorrência é complexa para SQL puro
       ),
       with: {
         paciente: true,
@@ -41,12 +54,12 @@ export class CalendarService {
     const existingConsultations = await db.query.consultas.findMany({
       where: or(
         and(
-          gte(consultas.dataPrevista, startDate),
-          lte(consultas.dataPrevista, endDate),
+          gte(consultas.dataPrevista, startOfPeriod),
+          lte(consultas.dataPrevista, endOfPeriod),
         ),
         and(
-          gte(consultas.dataRealizacao, startDate),
-          lte(consultas.dataRealizacao, endDate),
+          gte(consultas.dataRealizacao, startOfPeriod),
+          lte(consultas.dataRealizacao, endOfPeriod),
         ),
       ),
       with: {
@@ -62,18 +75,17 @@ export class CalendarService {
 
     // 3. Processar cada agenda para gerar os slots
     for (const agenda of activeAgendas) {
-      let currentDate = new Date(startDate)
-      const agendaStart = new Date(agenda.dataInicio)
-      const agendaEnd = agenda.dataFim ? new Date(agenda.dataFim) : null
+      let currentDate = new Date(startOfPeriod)
+      const agendaStart = parseISO(agenda.dataInicio)
+      const agendaEnd = agenda.dataFim ? parseISO(agenda.dataFim) : null
 
       // RN-05: Encerramento de Recorrência (Não gerar após dataFim)
-      // Se o período solicitado começa depois do fim da agenda, pula
-      if (agendaEnd && isAfter(startDate, agendaEnd)) continue
+      if (agendaEnd && isAfter(startOfPeriod, agendaEnd)) continue
 
       // Iterar dia a dia do período solicitado para encontrar matches
       while (
-        isBefore(currentDate, endDate) ||
-        isSameDay(currentDate, endDate)
+        isBefore(currentDate, endOfPeriod) ||
+        isSameDay(currentDate, endOfPeriod)
       ) {
         // Verificar validade temporal da agenda
         if (isBefore(currentDate, agendaStart)) {
@@ -90,16 +102,10 @@ export class CalendarService {
         if (agenda.frequencia === 'unica') {
           if (isSameDay(currentDate, agendaStart)) isMatch = true
         } else if (agenda.frequencia === 'semanal') {
-          // agenda.diaSemana: 0=Dom, 6=Sab
-          // getDay(currentDate): 0=Dom, 6=Sab
           if (getDay(currentDate) === agenda.diaSemana) isMatch = true
         } else if (agenda.frequencia === 'quinzenal') {
-          // Lógica simplificada: a cada 2 semanas a partir da data de início
-          // Diferença em dias % 14 == 0
-          const diffTime = Math.abs(
-            currentDate.getTime() - agendaStart.getTime(),
-          )
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          // A cada 2 semanas (14 dias) a partir da data de início
+          const diffDays = differenceInCalendarDays(currentDate, agendaStart)
           if (diffDays % 14 === 0) isMatch = true
         } else if (agenda.frequencia === 'mensal') {
           if (currentDate.getDate() === agendaStart.getDate()) isMatch = true
@@ -107,12 +113,10 @@ export class CalendarService {
 
         if (isMatch) {
           // Combinar Data + Hora
-          // agenda.hora é string "HH:MM:SS"
           const [hours, minutes] = agenda.hora.split(':').map(Number)
           
           // Fix Timezone Issue: Force -03:00 (Brazil)
-          // We take the UTC date (which aligns with the intended day) and append the time with Brazil offset.
-          const dateStr = currentDate.toISOString().split('T')[0]
+          const dateStr = format(currentDate, 'yyyy-MM-dd')
           const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
           const slotDateTime = new Date(`${dateStr}T${timeStr}-03:00`)
 
@@ -120,7 +124,9 @@ export class CalendarService {
           const consultation = existingConsultations.find(
             (c) =>
               c.agendaId === agenda.id &&
-              c.dataPrevista.getTime() === slotDateTime.getTime(),
+              isSameDay(c.dataPrevista, slotDateTime) &&
+              c.dataPrevista.getHours() === slotDateTime.getHours() &&
+              c.dataPrevista.getMinutes() === slotDateTime.getMinutes()
           )
 
           if (consultation) {
@@ -136,7 +142,7 @@ export class CalendarService {
               events.push({
                 date: consultation.dataPrevista,
                 originalDate: consultation.dataPrevista,
-                newDate: consultation.dataRealizacao!, // Informar para onde foi
+                newDate: consultation.dataRealizacao!,
                 type: 'consultation',
                 agendaId: agenda.id,
                 status: 'reagendado-origem',
@@ -146,7 +152,7 @@ export class CalendarService {
                 patientEmail: agenda?.paciente?.email || '',
               })
 
-              // Adicionar eventos fantasmas do histórico (Reagendamentos intermediários)
+              // Adicionar eventos fantasmas do histórico
               if (
                 consultation.historico &&
                 Array.isArray(consultation.historico)
@@ -156,7 +162,7 @@ export class CalendarService {
                   events.push({
                     date: histDate,
                     originalDate: consultation.dataPrevista,
-                    newDate: consultation.dataRealizacao!, // Aponta para o atual
+                    newDate: consultation.dataRealizacao!,
                     type: 'consultation',
                     agendaId: agenda.id,
                     status: 'reagendado-origem',
@@ -181,7 +187,7 @@ export class CalendarService {
                 patientEmail: agenda?.paciente?.email || '',
               })
             } else {
-              // Slot Ocupado (Sem mudança de horário ou cancelado/realizado no mesmo horário)
+              // Slot Ocupado
               events.push({
                 date: consultation.dataRealizacao || consultation.dataPrevista,
                 originalDate: consultation.dataPrevista,
@@ -195,13 +201,13 @@ export class CalendarService {
               })
             }
           } else {
-            // Slot Padrão Disponível (Virtual)
+            // Slot Padrão Disponível
             events.push({
               date: slotDateTime,
               originalDate: slotDateTime,
               type: 'slot',
               agendaId: agenda.id,
-              status: 'disponivel', // Representa o "Padrão" da agenda
+              status: 'disponivel',
               patientId: agenda.pacienteId,
               patientName: agenda.paciente.nomeCompleto,
               patientEmail: agenda?.paciente?.email || '',
@@ -213,8 +219,7 @@ export class CalendarService {
       }
     }
 
-    // 4. Adicionar consultas que não foram "casadas" com slots virtuais
-    // (Ex: Reagendadas para este período vindo de fora, ou agendas canceladas que mantiveram histórico)
+    // 4. Adicionar consultas avulsas ou reagendadas
     for (const c of existingConsultations) {
       if (!matchedConsultationIds.has(c.id)) {
         events.push({
