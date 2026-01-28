@@ -85,6 +85,7 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
                     {timeSlots.map(({ hour, minute, label }) => {
                        const event = getEventForSlot(day, hour, minute)
                        const isGhost = event?.status === 'reagendado-origem'
+                       const isFreeable = event?.isFreeable || isGhost
                        
                        return (
                          <div 
@@ -95,7 +96,14 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
                              isSunday && "bg-[image:repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.05)_10px,rgba(0,0,0,0.05)_20px)]"
                            )}
                            onClick={() => {
-                             if (!isSunday && !event) onSlotClick(day, hour, minute)
+                             if (!isSunday && (!event || isFreeable)) {
+                               if (isFreeable && event.type !== 'slot') {
+                                 // If it's a cancelled/moved consultation, we allow clicking the background to add new
+                                 onSlotClick(day, hour, minute)
+                               } else if (!event) {
+                                 onSlotClick(day, hour, minute)
+                               }
+                             }
                            }}
                          >
                             {event ? (
@@ -105,7 +113,7 @@ export function CalendarGrid({ days, timeSlots, events, onEventClick, onSlotClic
                                   onClick={onEventClick} 
                                   isGhost={isGhost}
                                 />
-                                {isGhost && !isSunday && (
+                                {isFreeable && !isSunday && (
                                    <div 
                                       className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer bg-primary text-primary-foreground rounded-full p-1 shadow-sm hover:scale-110"
                                       onClick={(e) => {

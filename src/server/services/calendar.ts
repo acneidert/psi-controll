@@ -20,6 +20,7 @@ type CalendarEvent = {
   type: 'slot' | 'consultation'
   agendaId: number
   status: string // 'disponivel', 'agendada', 'realizada', etc.
+  isFreeable?: boolean // Indicates if a recurring slot is empty due to cancellation/reschedule
   consultationId?: number
   patientId: number
   patientName?: string
@@ -146,6 +147,7 @@ export class CalendarService {
                 type: 'consultation',
                 agendaId: agenda.id,
                 status: 'reagendado-origem',
+                isFreeable: true, // Mark as freeable because it was moved
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,
@@ -194,6 +196,7 @@ export class CalendarService {
                 type: 'consultation',
                 agendaId: agenda.id,
                 status: consultation.status || 'agendada',
+                isFreeable: consultation.status === 'cancelada', // Mark as freeable if cancelled
                 consultationId: consultation.id,
                 patientId: agenda.pacienteId,
                 patientName: agenda.paciente.nomeCompleto,

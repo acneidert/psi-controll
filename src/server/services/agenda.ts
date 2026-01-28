@@ -1,7 +1,16 @@
 import { and, desc, eq, ne } from 'drizzle-orm'
-import { format, getDay, parseISO, subDays } from 'date-fns'
+import {
+  differenceInCalendarDays,
+  format,
+  getDay,
+  isAfter,
+  isBefore,
+  isSameDay,
+  parseISO,
+  subDays,
+} from 'date-fns'
 import { db } from '@/db'
-import { agendas } from '@/db/schema'
+import { agendas, consultas } from '@/db/schema'
 
 export type CreateAgendaInput = {
   pacienteId: number
@@ -53,7 +62,13 @@ export class AgendaService {
     }
 
     // 1. Validation: Check for conflicts
-    await this.checkConflict(diaSemana, data.hora, data.dataInicio, dataFim)
+    await this.checkConflict(
+      diaSemana,
+      data.hora,
+      data.dataInicio,
+      dataFim,
+      data.frequencia,
+    )
 
     // 2. Insert
     const [newAgenda] = await db
@@ -137,13 +152,13 @@ export class AgendaService {
       const dataInicio = data.dataInicio ?? existing.dataInicio
       let dataFim = data.dataFim === undefined ? existing.dataFim : data.dataFim
 
-      const frequencia = data.frequencia ?? existing.frequencia
+      const frequencia = data.frequencia ?? (existing.frequencia as any)
       if (frequencia === 'unica' && !dataFim) {
         dataFim = dataInicio
         data.dataFim = dataFim
       }
 
-      await this.checkConflict(diaSemana!, hora, dataInicio, dataFim, id)
+      await this.checkConflict(diaSemana!, hora, dataInicio, dataFim, frequencia, id)
 
       data.diaSemana = diaSemana ?? undefined
     }
@@ -184,7 +199,8 @@ export class AgendaService {
     diaSemana: number,
     hora: string,
     dataInicio: string,
-    dataFim?: string | null,
+    dataFim: string | null | undefined,
+    frequencia: 'unica' | 'semanal' | 'quinzenal' | 'mensal',
     excludeId?: number,
   ) {
     const conditions = [
@@ -198,24 +214,106 @@ export class AgendaService {
     }
 
     const conflicting = await db
-      .select()
+      .select({
+        id: agendas.id,
+        pacienteId: agendas.pacienteId,
+        frequencia: agendas.frequencia,
+        dataInicio: agendas.dataInicio,
+        dataFim: agendas.dataFim,
+      })
       .from(agendas)
       .where(and(...conditions))
 
+    const newStart = parseISO(dataInicio)
+    const newEnd = dataFim ? parseISO(dataFim) : null
+
     for (const existing of conflicting) {
-      const existingStart = existing.dataInicio
-      const existingEnd = existing.dataFim
+      const existingStart = parseISO(existing.dataInicio)
+      const existingEnd = existing.dataFim ? parseISO(existing.dataFim) : null
 
-      const newStart = dataInicio
-      const newEnd = dataFim
+      // 1. Basic Date Range Overlap
+      if (existingEnd && isBefore(existingEnd, newStart)) continue
+      if (newEnd && isBefore(newEnd, existingStart)) continue
 
-      // Check overlap
-      if (existingEnd && existingEnd < newStart) continue // No overlap
-      if (newEnd && newEnd < existingStart) continue // No overlap
+      // 2. Frequency Specific Overlap
+      let hasOverlap = false
 
-      throw new Error(
-        `Conflito de horário detectado com agenda existente (Paciente: ${existing.pacienteId}).`,
-      )
+      // If one is weekly, it always conflicts with any recurrence on that day/time
+      if (frequencia === 'semanal' || existing.frequencia === 'semanal') {
+        hasOverlap = true
+      } 
+      // Both are single/once
+      else if (frequencia === 'unica' && existing.frequencia === 'unica') {
+        if (isSameDay(newStart, existingStart)) hasOverlap = true
+      }
+      // One is single, other is recurring
+      else if (frequencia === 'unica' || existing.frequencia === 'unica') {
+        const singleDate = frequencia === 'unica' ? newStart : existingStart
+        const recurringStart = frequencia === 'unica' ? existingStart : newStart
+        const recurringEnd = frequencia === 'unica' ? existingEnd : newEnd
+        const recurringFreq = frequencia === 'unica' ? existing.frequencia : frequencia
+        const recurringAgendaId = frequencia === 'unica' ? existing.id : (excludeId || 0) // This logic is slightly flawed for update, but excludeId handles it
+
+        // Check if singleDate lands on a recurring date
+        let landsOnRecurringDay = false
+        if (!isBefore(singleDate, recurringStart) && (!recurringEnd || !isAfter(singleDate, recurringEnd))) {
+          if (recurringFreq === 'quinzenal') {
+            const diff = differenceInCalendarDays(singleDate, recurringStart)
+            if (diff % 14 === 0) landsOnRecurringDay = true
+          } else if (recurringFreq === 'mensal') {
+            if (singleDate.getDate() === recurringStart.getDate()) landsOnRecurringDay = true
+          } else if (recurringFreq === 'semanal') {
+            landsOnRecurringDay = true
+          }
+        }
+
+        if (landsOnRecurringDay) {
+          // EXCEPTION: If the recurring slot is CANCELLED or RESCHEDULED for this specific date, 
+          // allow the "unica" agenda to occupy it.
+          const agendaIdToCheck = frequencia === 'unica' ? existing.id : (excludeId || 0)
+          
+          if (agendaIdToCheck > 0) {
+             const exception = await db.query.consultas.findFirst({
+               where: and(
+                 eq(consultas.agendaId, agendaIdToCheck),
+                 eq(consultas.dataPrevista, singleDate)
+               )
+             })
+
+             // If there is a cancellation or it was moved to another date, it's NOT an overlap
+             const isFree = exception && (
+               exception.status === 'cancelada' || 
+               (exception.dataRealizacao && !isSameDay(exception.dataRealizacao, exception.dataPrevista))
+             )
+
+             if (!isFree) {
+               hasOverlap = true
+             }
+          } else {
+            hasOverlap = true
+          }
+        }
+      }
+      // Both are quinzenal
+      else if (frequencia === 'quinzenal' && existing.frequencia === 'quinzenal') {
+        const diff = differenceInCalendarDays(newStart, existingStart)
+        // If diff is multiple of 14, they are on the same week cycle
+        if (Math.abs(diff) % 14 === 0) hasOverlap = true
+      }
+      // Both are mensal
+      else if (frequencia === 'mensal' && existing.frequencia === 'mensal') {
+        if (newStart.getDate() === existingStart.getDate()) hasOverlap = true
+      }
+      // Mix of quinzenal and mensal - very likely to overlap eventually
+      else {
+        hasOverlap = true
+      }
+
+      if (hasOverlap) {
+        throw new Error(
+          `Conflito de horário detectado com agenda existente (Paciente: ${existing.pacienteId}).`,
+        )
+      }
     }
   }
 }
